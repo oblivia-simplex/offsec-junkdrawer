@@ -1,0 +1,24 @@
+ ____  _____    _    ____  __  __ _____ 
+|  _ \| ____|  / \  |  _ \|  \/  | ____|
+| |_) |  _|   / _ \ | | | | |\/| |  _|  
+|  _ <| |___ / ___ \| |_| | |  | | |___ 
+|_| \_\_____/_/   \_\____/|_|  |_|_____|
+                                        
+This is a collection of small offensive security tools that I've
+put together mostly for my own convenience. Some of them are
+my own, others are major or minor variations (or sometimes just
+direct copies) on tricks and scripts I've picked up from others.
+Where the original source is known, it's attributed.
+
+* /phineas-pty/ implements a gem of a trick that I picked up from
+  Phineas Fishers "Hacking Sindicat de Mossos d'Esquadra" video,
+  to get a fully functional pty on a reverse netcat shell. This
+  script takes care of the listener. The sender can just be a
+  garden variety reverse shell. In order to work, it needs to be
+  run inside a tmux instance, since it makes use of the tmux
+  send-keys command.
+
+* /innocent/ is just an ordinary windows reverse shell launcher,
+  written in C, and meant to be compiled using mingw (see the
+  Makefile in that directory). I stumbled across it over at
+  [[https://www.nulled.to/topic/87972-custom-windows-reverse-shell-backdoor-written-in-c]].

