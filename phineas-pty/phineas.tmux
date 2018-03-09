@@ -10,7 +10,7 @@ SH=/bin/sh
 
 tmux bind-key M-Enter \
      display-message "Spawning a pty through python..."               \\\; \
-     send-keys "python -c \"import pty; pty.spawn('$SH')\""   Enter \\\; \
+     send-keys "python -c \"import pty; pty.spawn('$SH')\""     Enter \\\; \
      run-shell "sleep 0.2"                                            \\\; \
      display-message "Suspending the listener..."                     \\\; \
      send-keys C-z                                                    \\\; \
