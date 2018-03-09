@@ -23,8 +23,8 @@ tmux bind-key M-Enter \
      run-shell "sleep 0.2"                                            \\\; \
      display-message "Configuring terminal settings..."               \\\; \
      send-keys "reset"                                          Enter \\\; \
-     run-shell "tmux send-keys \
-                     \"stty rows #{pane_height} cols #{pane_width}\" \
+     run-shell "tmux send-keys                                             \
+                     \"stty rows #{pane_height} cols #{pane_width}\"       \
                      Enter"                                           \\\; \
      display-message "Setting environment variables..."               \\\; \
      send-keys "export HOME=/tmp"                               Enter \\\; \
