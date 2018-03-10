@@ -1,0 +1,9 @@
+[submodule "pat"]
+	path = pat
+	url = git@github.com:oblivia-simplex/pat
+[submodule "iprange"]
+	path = iprange
+	url = git@github.com:oblivia-simplex/iprange
+[submodule "tmux_ptyneas"]
+	path = tmux_ptyneas
+	url = git@github.com:oblivia-simplex/tmux_ptyneas
