@@ -33,6 +33,12 @@ tmux bind-key M-Enter \
      send-keys "clear; bash 2>/dev/null"                        Enter \\\; \
      display-message "Happy hacking!"
 
+# use this one after resizing the tmux pane, to fix up the nc pty
+tmux bind-key M-= \
+     run-shell "tmux send-keys                                             \
+                     \"stty rows #{pane_height} cols #{pane_width}\"       \
+                     Enter"
+
 echo "[+] Hit M-Enter in an active netcat shell to upgrade to a full pty."
 echo "    Thanks to Phineas Fisher for pointing out this trick."
 # I should do a local enumeration script here, too.
