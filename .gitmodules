@@ -5,7 +5,7 @@
 	path = iprange
 	url = git@github.com:oblivia-simplex/iprange
 [submodule "tmux_ptyneas"]
-	path = tmux-ptyneas
+	path = tmux-plugins/tmux-ptyneas
 	url = git@github.com:oblivia-simplex/tmux_ptyneas
 [submodule "monsoon"]
 	path = monsoon
