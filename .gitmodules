@@ -11,5 +11,5 @@
 	path = monsoon
 	url = git@github.com:oblivia-simplex/monsoon
 [submodule "tmux-enum"]
-	path = tmux-enum
+	path = tmux-plugins/tmux-enum
 	url = git@github.com:oblivia-simplex/tmux-enum
