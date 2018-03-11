@@ -5,5 +5,11 @@
 	path = iprange
 	url = git@github.com:oblivia-simplex/iprange
 [submodule "tmux_ptyneas"]
-	path = tmux_ptyneas
+	path = tmux-ptyneas
 	url = git@github.com:oblivia-simplex/tmux_ptyneas
+[submodule "monsoon"]
+	path = monsoon
+	url = git@github.com:oblivia-simplex/monsoon
+[submodule "tmux-enum"]
+	path = tmux-enum
+	url = git@github.com:oblivia-simplex/tmux-enum
