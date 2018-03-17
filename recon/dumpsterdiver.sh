@@ -4,6 +4,8 @@ bin=$1
 joblimit=16
 flags=--no-check-certificate
 
+MUTEX=0
+
 ## ANSI escape sequences for colours
 DARKGREEN=$'\e[00;32m'
 GREEN=$'\e[01;32m'
@@ -35,7 +37,7 @@ case "$bin" in
     suffix="download"
   ;;
   termbin)
-    n=4
+    n=4 # or 4
     charset=a-z0-9
     prefix="http://termbin.com"
     suffix=""
@@ -70,7 +72,7 @@ cd $loot
 function throttle () {
   joblimit=$1
   joblist=($(jobs -p))
-  echo "${BLUE}[ throttle: ${#joblist[*]}/$joblimit ]${RESET}"
+  #echo "${BLUE}[ throttle: ${#joblist[*]}/$joblimit ]${RESET}"
   while (( ${#joblist[*]} >= $joblimit )); do
     sleep 1
     joblist=($(jobs -p))
@@ -79,18 +81,20 @@ function throttle () {
 
 function action () {
   key=$(cat /dev/urandom | tr -dc $charset | head -c $n)
-  grep -q $key ../keys-tried.txt && echo "[tried $key]" && continue
+  grep -q $key ../keys-tried.txt && continue
   echo $key >> ../keys-tried.txt
   #[ -f ./${key} ] && continue
   url=$(makeurl $key)
-  echo "${RESET} [$(ls | wc -l)] =====${WHITE} $url ${RESET}===="
+  echo -ne '\r'
+  echo -ne "${RESET} [$(ls | wc -l)] =====${WHITE} $url ${RESET}====\r"
   wget $flags $url 2> /tmp/${bin}-brute.err || continue
   postop $key
   md5=$(cat $key | md5sum | awk '{print $1}')
   if [ -f "$md5" ]; then
-    echo "${PINK}[X] Redundant${RESET} (deleting)"
+    #echo -e "${PINK}[X] Redundant${RESET} (deleting)\n"
     rm $key
   else
+    echo
     echo "${CYAN}[*] Renamed $key -> $md5 ($(wc -c $key | awk '{print $1}') bytes)"
     mv $key $md5
     echo -n ${GREEN} && head -n 16 ${md5} 
