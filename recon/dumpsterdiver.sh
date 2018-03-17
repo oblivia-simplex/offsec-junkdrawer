@@ -56,6 +56,25 @@ case "$bin" in
   ;;
 esac
  
+function mecho ()
+{
+  while (( $MUTEX )); do
+    sleep 0.1
+  done
+  MUTEX=1
+  echo $@
+  MUTEX=0
+}
+
+function mcat ()
+{
+  while (( $MUTEX )); do
+    sleep 0.1
+  done
+  MUTEX=1
+  cat $@
+  MUTEX=0
+}
 
 function makeurl ()
 {
@@ -81,29 +100,29 @@ function throttle () {
 
 function action () {
   key=$(cat /dev/urandom | tr -dc $charset | head -c $n)
-  grep -q $key ../keys-tried.txt && continue
+  grep -q $key ../keys-tried.txt && return
   echo $key >> ../keys-tried.txt
-  #[ -f ./${key} ] && continue
+  #[ -f ./${key} ] && return
   url=$(makeurl $key)
-  echo -ne '\r'
-  echo -ne "${RESET} [$(ls | wc -l)] =====${WHITE} $url ${RESET}====\r"
-  wget $flags $url 2> /tmp/${bin}-brute.err || continue
+  mecho -ne '\r'
+  mecho -ne "${RESET} [$(ls | wc -l)] =====${WHITE} $url ${RESET}====\r"
+  wget $flags $url 2> /tmp/${bin}-brute.err || return
   postop $key
   md5=$(cat $key | md5sum | awk '{print $1}')
   if [ -f "$md5" ]; then
     #echo -e "${PINK}[X] Redundant${RESET} (deleting)\n"
     rm $key
   else
-    echo
-    echo "${CYAN}[*] Renamed $key -> $md5 ($(wc -c $key | awk '{print $1}') bytes)"
+    mecho
+    mecho "${CYAN}[*] Renamed $key -> $md5 ($(wc -c $key | awk '{print $1}') bytes)"
     mv $key $md5
-    echo -n ${GREEN} && head -n 16 ${md5} 
+    (echo -n ${GREEN} && head -n 16 ${md5}) | mcat
     rem=$(( $(wc -l $md5 | awk '{print $1}') - 16 ))
     if (( $rem > 0 )); then
       (( $rem > 16 )) && rem=16
-      echo -n ${DARKGREEN} && tail -n $rem ${md5}
+      (echo -n ${DARKGREEN} && tail -n $rem ${md5}) | mcat
     fi
-    echo
+    mecho
   fi
 }
 
