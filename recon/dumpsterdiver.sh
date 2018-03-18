@@ -1,20 +1,18 @@
-#! /usr/bin/env bash
+#!/usr/bin/env bash
 
 bin=$1
+db=$2
+useragent=$3
 joblimit=16
-flags=--no-check-certificate
 
-MUTEX=0
-
-## ANSI escape sequences for colours
 DARKGREEN=$'\e[00;32m'
 GREEN=$'\e[01;32m'
 TEAL=$'\e[00;36m'
 DARKGREY=$'\e[01;30m'
 CYAN=$'\e[01;36m'
 LIGHTGREY=$'\e[00;37m'
-RED=$'\e[00;31m' #?
-PINK=$'\e[01;31m' #?
+RED=$'\e[00;31m'
+PINK=$'\e[01;31m'
 BLACK=$'\e[00;30m'
 BLUE=$'\e[01;34m'
 DARKBLUE=$'\e[00;34m'
@@ -24,38 +22,14 @@ YELLOW=$'\e[01;33m'
 MAGENTA=$'\e[01;35m'
 PURPLE=$'\e[00;35m'
 
+MUTEX=0
+
 [ -n "$bin" ] || bin=ghostbin
+[ -n "$useragent" ] || useragent="Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)"
+loot=$bin-loot
+[ -d "$loot" ] || mkdir $loot
+[ -n "$db" ] || db=visited.db
 
-loot="${bin}-loot"
-[ -d "$loot" ] || mkdir -p $loot
-
-case "$bin" in
-  ghostbin)
-    n=5
-    charset=a-z0-9
-    prefix="https://ghostbin.com/paste"
-    suffix="download"
-  ;;
-  termbin)
-    n=4 # or 4
-    charset=a-z0-9
-    prefix="http://termbin.com"
-    suffix=""
-  ;;
-  pasteee)
-    n=5
-    charset=a-zA-Z0-9
-    prefix="https://paste.ee/d"
-    suffix="0"
-  ;;
-  pipfi)
-    n=4
-    charset=A-Za-z0-9
-    prefix="http://p.ip.fi"
-    suffix=""
-  ;;
-esac
- 
 function mecho ()
 {
   while (( $MUTEX )); do
@@ -76,72 +50,133 @@ function mcat ()
   MUTEX=0
 }
 
-function makeurl ()
-{
-  echo "${prefix}/${1}/${suffix}" | sed "s,/$,,"
+function sqlite_execute(){
+    while :; do
+        result=$(sqlite3 $1 "${2}" 2>&1)
+        if [ "${result}" = "Error: database is locked" ]; then
+            continue
+        else
+            break
+        fi
+    done
+    mecho "${result}"
 }
 
-function postop ()
-{
-  [ -n "$suffix" ] && mv $suffix $1
+if [ ! -f $db ]; then
+    mecho "${YELLOW}[*] dumpsterdiver database not found creating a new one"
+    touch $db
+    sqlite_execute $db "create table urls(id integer primary key autoincrement, url varchar(2083) unique, response integer, pii integer, hashes_id integer);"
+    sqlite_execute $db "create table hashes(id integer primary key autoincrement, hash varchar(32) unique);"
+fi
+
+function makeurl(){
+    case "$bin" in
+        termbin)
+            n=4
+            charset=a-z0-9
+            prefix="http://termbin.com"
+            key=$(cat /dev/urandom | tr -dc $charset | head -c $n)
+            mecho "${prefix}/${key}"
+            ;;
+        pastebin)
+            n=8
+            charset=a-z0-9
+            prefix="https://pastebin.com/raw"
+            key=$(cat /dev/urandom  | tr -dc $charset | head -c $n)
+            mecho "${prefix}/${key}"
+            ;;
+        ghostbin)
+            n=5
+            charset=a-z0-9
+            prefix="https://ghostbin.com/paste"
+            key=$(cat /dev/urandom | tr -dc $charset | head -c $n)
+            suffix="raw"
+            mecho "${prefix}/${key}/${suffix}"
+            ;;
+        pasteee)
+            n=5
+            charset=a-z0-9
+            prefix="https://paste.ee/p"
+            key=$(cat /dev/urandom  | tr -dc $charset | head -c $n)
+            mecho "${prefix}/${key}"
+            ;;
+        pipfi)
+            n=4
+            charset=a-z0-9
+            prefix="http://p.ip.fi"
+            key=$(cat /dev/urandom | tr -dc $charset | head -c $n)
+            mecho "${prefix}/${key}"
+            ;;
+    esac
 }
 
-cd $loot
+function pii(){
+    reg_cc="(?:4[0-9]{12}(?:[0-9]{3})?|[25][1-7][0-9]{14}|6(?:011|5[0-9][0-9])[0-9]{12}|3[47][0-9]{13}|3(?:0[0-5]|[68][0-9])[0-9]{11}|(?:2131|1800|35\d{3})\d{11})"
+    reg_email="[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,4}"
+    reg_pii="${reg_email}|${reg_cc}"
+    data_pii=$(mecho $data | grep -Eio $reg_pii)
+    if mecho $data | grep -Eiq $reg_pii
+        then mecho $data_pii
+        else mecho 1
+    fi
+}
 
-function throttle () {
+function action(){
+    while :; do
+        url=$(makeurl)
+        db_url=$(sqlite_execute $db "select url from urls where url = '${url}'")
+        if [ "${url}" = "${db_url}" ]; then
+            mecho "${YELLOW}[*] ${url} has already visited generating another"
+        else
+            break
+        fi
+    done
+    response=$(curl -A "${useragent}" --write-out %{http_code} --silent --output /dev/null "${url}")
+    if [ "$response" = "200" ]; then
+        data=$(curl -s -A "${useragent}" "${url}")
+        md5=$(mecho -e "${data}" | md5sum | cut -d ' ' -f 1)
+        data_pii=$(pii)
+        db_md5=$(sqlite_execute $db "select hash from hashes where hash = '${md5}';")
+        if [ "${db_md5}" != "${md5}" ]; then
+            sqlite3 $db "insert into hashes(hash) values('${md5}');"
+            hashes_id=$(sqlite_execute $db "select id from hashes where hash = '${md5}'")
+            if [ "${data_pii}" = "1" ]; then
+                sqlite3 $db "insert into urls(url, response, pii, hashes_id) values('${url}', '${response}', 0, ${hashes_id});"
+            else
+                mecho "${PINK}[*] found potential pii"
+                sqlite3 $db "insert into urls(url, response, pii, hashes_id) values('${url}', '${response}', 1, ${hashes_id});"
+            fi
+            mecho "${GREEN}[-] fetched ${url} with response ${response} and md5sum of ${md5}"
+            mecho "${BLUE}---BEGIN DATA---"
+            mecho "${BLUE}${data}"
+            mecho "${BLUE}---END DATA---"
+            mecho "${BLUE}[-] writing loot to ${loot}/${md5}"
+            mecho "${data}" > $loot/$md5
+        else
+            mecho "${YELLOW}[*] fetched ${url} however data alredy collected for hash ${md5}"
+        fi
+    else
+        sqlite_execute $db "insert into urls(url, response, pii) values('${url}', '${response}', 0);"
+        mecho "${RED}[x] fetching ${url} failed with response ${response}"
+    fi
+}
+
+function throttle(){
   joblimit=$1
   joblist=($(jobs -p))
-  #echo "${BLUE}[ throttle: ${#joblist[*]}/$joblimit ]${RESET}"
   while (( ${#joblist[*]} >= $joblimit )); do
     sleep 1
     joblist=($(jobs -p))
   done
 }
 
-function action () {
-  key=$(cat /dev/urandom | tr -dc $charset | head -c $n)
-  grep -q $key ../keys-tried.txt && return
-  echo $key >> ../keys-tried.txt
-  #[ -f ./${key} ] && return
-  url=$(makeurl $key)
-  mecho -ne '\r'
-  mecho -ne "${RESET} [$(ls | wc -l)] =====${WHITE} $url ${RESET}====\r"
-  wget $flags $url 2> /tmp/${bin}-brute.err || return
-  postop $key
-  md5=$(cat $key | md5sum | awk '{print $1}')
-  if [ -f "$md5" ]; then
-    #echo -e "${PINK}[X] Redundant${RESET} (deleting)\n"
-    rm $key
-  else
-    mecho
-    mecho "${CYAN}[*] Renamed $key -> $md5 ($(wc -c $key | awk '{print $1}') bytes)"
-    mv $key $md5
-    (echo -n ${GREEN} && head -n 16 ${md5}) | mcat
-    rem=$(( $(wc -l $md5 | awk '{print $1}') - 16 ))
-    if (( $rem > 0 )); then
-      (( $rem > 16 )) && rem=16
-      (echo -n ${DARKGREEN} && tail -n $rem ${md5}) | mcat
-    fi
-    mecho
-  fi
-}
-
-function cleanup ()
-{
-  trap - INT
-  echo "${MAGENTA}[*] Cleaning up...${RESET}"
-  jobs
-  while jobs | grep -q action; do
-    echo -n "." 
-    sleep 1
-  done
-  echo
-  exit
-}
-
-trap cleanup INT
-
-while :; do
-  action &
-  throttle $joblimit
-done
+if [ "${joblimit}" = "1" ]; then
+    while :; do
+        action
+    done
+else
+    while :; do
+        action &
+        throttle $joblimit
+    done
+fi
