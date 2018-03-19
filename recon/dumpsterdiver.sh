@@ -77,14 +77,14 @@ function makeurl(){
             charset=a-z0-9
             prefix="http://termbin.com"
             key=$(cat /dev/urandom | tr -dc $charset | head -c $n)
-            mecho "${prefix}/${key}"
+            echo "${prefix}/${key}"
             ;;
         pastebin)
             n=8
             charset=a-z0-9
             prefix="https://pastebin.com/raw"
             key=$(cat /dev/urandom  | tr -dc $charset | head -c $n)
-            mecho "${prefix}/${key}"
+            echo "${prefix}/${key}"
             ;;
         ghostbin)
             n=5
@@ -92,35 +92,34 @@ function makeurl(){
             prefix="https://ghostbin.com/paste"
             key=$(cat /dev/urandom | tr -dc $charset | head -c $n)
             suffix="download"
-            mecho "${prefix}/${key}/${suffix}"
+            echo "${prefix}/${key}/${suffix}"
             ;;
         pasteee)
             n=5
             charset=a-z0-9
             prefix="https://paste.ee/p"
             key=$(cat /dev/urandom  | tr -dc $charset | head -c $n)
-            mecho "${prefix}/${key}"
+            suffix="0"
+            echo "${prefix}/${key}"
             ;;
         pipfi)
             n=4
             charset=a-z0-9
             prefix="http://p.ip.fi"
             key=$(cat /dev/urandom | tr -dc $charset | head -c $n)
-            mecho "${prefix}/${key}"
+            echo "${prefix}/${key}"
             ;;
     esac
 }
 
 function pii(){
-    data=$1
+    file=$1
     reg_cc="(?:4[0-9]{12}(?:[0-9]{3})?|[25][1-7][0-9]{14}|6(?:011|5[0-9][0-9])[0-9]{12}|3[47][0-9]{13}|3(?:0[0-5]|[68][0-9])[0-9]{11}|(?:2131|1800|35\d{3})\d{11})"
     reg_email="[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,4}"
     reg_pii="${reg_email}|${reg_cc}"
-    data_pii=$(mecho $data | grep -Eio $reg_pii)
-    if mecho $data | grep -Eiq $reg_pii
-        then mecho $data_pii
-        else mecho 1
-    fi
+    grep -Ei $reg_pii "${file}" > ${file}.pii \
+        && echo 0 \
+            || echo 1
 }
 
 function action(){
@@ -133,34 +132,36 @@ function action(){
             break
         fi
     done
-    echo -en "\r${RESET} [$(ls $loot | wc -l | awk '{print $1}')] ====${WHITE} $url ${RESET}===="
+    echo -en "\r${RESET} [$(ls $loot | wc -l | awk '{print $1}')] "
+    echo -en "====${WHITE} $url ${RESET}===="
     response=$(curl -A "${useragent}" --write-out %{http_code} -I --silent --output /dev/null "${url}")
+    echo -n " [$response] "
     if [ "$response" = "200" ]; then
         echo
-        data=$(curl -s -A "${useragent}" "${url}")
-        md5=$(mecho -e "${data}" | md5sum | cut -d ' ' -f 1)
-        data_pii=$(pii "$data")
+        tmp=$(mktemp)
+        curl -s -A "${useragent}" "${url}" > $tmp
+        md5=$(md5sum $tmp | cut -d ' ' -f 1)
+        data_pii=$(pii $tmp)
         db_md5=$(sqlite_execute $db "select hash from hashes where hash = '${md5}';")
         if [ "${db_md5}" != "${md5}" ]; then
             sqlite3 $db "insert into hashes(hash) values('${md5}');"
             hashes_id=$(sqlite_execute $db "select id from hashes where hash = '${md5}'")
-            if [ "${data_pii}" = "1" ]; then
+            if (( "${data_pii}" )); then
                 sqlite3 $db "insert into urls(url, response, pii, hashes_id) values('${url}', '${response}', 0, ${hashes_id});"
             else
-                mecho "${PINK}[*] found potential pii"
+                mecho "${PINK}[*] found potential pii${RED}"
+                cat ${tmp}.pii
                 sqlite3 $db "insert into urls(url, response, pii, hashes_id) values('${url}', '${response}', 1, ${hashes_id});"
             fi
-            mecho "${GREEN}[-] fetched ${url} with response ${response} and md5sum of ${md5}"
-            echo "${data}" > $loot/$md5
-            mecho "${BLUE}---BEGIN DATA---${RESET}"
+            mecho "${CYAN}[+] ${url} -> ${loot}/${md5}${RESET}"
+            mv $tmp $loot/$md5
+            rm ${tmp}.pi
             (echo -n ${GREEN} && head -n 16 ${md5}) | mcat
             rem=$(( $(wc -l $md5 | awk '{print $1}') - 16 ))
             if (( $rem > 0 )); then
                 (( $rem > 16 )) && rem=16
                 (echo -n ${DARKGREEN} && tail -n $rem ${md5}) | mcat
             fi
-            mecho "${BLUE}---END DATA---${RESET}"
-            #mecho "${BLUE}[-] writing loot to ${loot}/${md5}"
         else
             mecho "${YELLOW}[*] fetched ${url} however data alredy collected for hash ${md5}"
         fi
