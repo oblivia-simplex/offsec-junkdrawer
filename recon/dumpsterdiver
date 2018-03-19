@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 
+script=$0
 bin=$1
 db=$2
 useragent=$3
@@ -19,19 +20,111 @@ PINK=$'\e[01;31m'
 BLACK=$'\e[00;30m'
 BLUE=$'\e[01;34m'
 DARKBLUE=$'\e[00;34m'
-WHITE=$'\e[01;38m'
+WHITE=$'\e[01;37m'
 RESET=$'\e[0m'
 YELLOW=$'\e[01;33m'
 MAGENTA=$'\e[01;35m'
 PURPLE=$'\e[00;35m'
 
 MUTEX=0
+LAST_SYNOPSIS=$(mktemp)
 
-[ -n "$bin" ] || bin=ghostbin
-loot=$bin-loot
-[ -n "$useragent" ] || useragent="Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)"
-[ -d "$loot" ] || mkdir $loot
-[ -n "$db" ] || db=visited.db
+if which dos2unix &> /dev/null ; then
+  DOS2UNIXPIPE=dos2unix 
+else
+  DOS2UNIXPIPE=cat
+fi
+
+UP=$'\033[1A'
+DOWN=$'\033[1B'
+
+BANNER=${GREEN}'
+ __ \                             |              __ \ _)                 
+ |   | |   | __ `__ \  __ \   __| __|  _ \  __|  |   | |\ \   / _ \  __| 
+ |   | |   | |   |   | |   |\__ \ |    __/ |     |   | | \ \ /  __/ |    
+____/ \__,_|_|  _|  _| .__/ ____/\__|\___|_|    ____/ _|  \_/ \___|_|    
+                      _|  '${DARKGREEN}'                                               
+                      __________________
+                      \                 \
+                        \                 \
+                          \                 \
+                            \                 \
+           /-------------------------------------
+         //---------------//                  / |
+       //               //                  / __|
+     //               //                  / /  ||
+   //               //                  / /    ||
+ //_______________//   '${YELLOW}'o o'${DARKGREEN}'            / /      ||      ___/-\___
+------------------------------------/   ------- |     |---------|
+| '${GREEN}'BRUTE FORCE '${DARKGREEN}'|        | '${GREEN}'FIND WEIRD'${DARKGREEN}' |           |      | | | | |
+|  '${GREEN}'PASTEBINS'${DARKGREEN}'  |        |    '${GREEN}'SHIT'${DARKGREEN}'    |           |      | | | | |
+|--------------        -------------|           |      | | | | |
+|                                   |           |      | | | | |
+-------------------------------------------------      |_______|
+
+'
+function greet ()
+{
+
+  default_bin=ghostbin
+  default_ua="Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)"
+  default_db="visited.db"
+  [ -n "$bin" ] || bin="$default_bin"
+  loot=$bin-loot
+  [ -n "$useragent" ] || useragent="$default_ua"
+  [ -d "$loot" ] || mkdir $loot
+  [ -n "$db" ] || db="$default_db"
+
+  echo "${DARKGREEN}"
+  echo "${BANNER}"
+  echo "${GREEN}Usage: $script [pastebin name] [sqlite3 db] [user agent]"
+  echo "${DARKGREEN}Using: pastebin:   $bin"
+  echo             "       database:   $db"
+  echo             "       user-agent: \"$useragent\""
+  echo -e "\n${GREEN}HIT <ENTER> TO CONTINUE...${RESET}"
+  read
+  echo -e "\n"
+}
+
+function freemem ()
+{
+  free -m | awk '{print $4}' | head -n 2 | tail -n 1
+}
+
+function freemem_echo ()
+{
+  fm=$(freemem)
+  if (( $fm < 128 )); then
+    echo "${PINK}[${fm}M free]${RESET}"
+  else
+    echo "${DARKGREY}[${fm}M free]${RESET}"
+  fi
+}
+
+function lootcount_echo ()
+{
+  echo "${DARKGREY}[$(ls $loot | wc -l | awk '{print $1}') looted]${RESET}"
+}
+
+function httpcode_echo ()
+{
+  code=$1
+  color=$DARKGREY
+  case "$code" in 
+    200)
+      colour=$CYAN
+      ;;
+    403)
+      colour=$PINK
+      ;;
+  esac
+  echo "${DARKGREY}[${colour}${code}${DARKGREY}]${RESET}"
+}
+
+function timestamp_echo ()
+{
+  echo "${DARKGREY}[$(date +"%F %T")]${RESET}"
+}
 
 function mecho ()
 {
@@ -66,12 +159,6 @@ function sqlite_execute(){
     #mecho "${result}"
 }
 
-if [ ! -f $db ]; then
-    mecho "${YELLOW}[*] dumpsterdiver database not found creating a new one"
-    touch $db
-    sqlite_execute $db "create table urls(id integer primary key autoincrement, url varchar(512) unique, response integer, pii integer, md5 varchar(32));"
-fi
-
 function makeurl(){
     case "$bin" in
         termbin)
@@ -93,7 +180,7 @@ function makeurl(){
             charset=a-z0-9
             prefix="https://ghostbin.com/paste"
             key=$(cat /dev/urandom | tr -dc $charset | head -c $n)
-            suffix="download"
+            suffix="raw" # or download
             echo "${prefix}/${key}/${suffix}"
             ;;
         pasteee)
@@ -117,6 +204,39 @@ function makeurl(){
 function domain () {
   url=$1
   echo $url | cut -d "/" -f 3
+}
+
+function synopsis () {
+  file="$1"
+  url="$2"
+  cols=$(tput cols)
+  rows=$(tput lines)
+  showrows=$(( (rows - 10) / 2 ))
+
+  echo $file > $LAST_SYNOPSIS
+  clear
+  (
+    echo "${WHITE},--- BEGIN SYNOPSIS ---"
+    echo -n ${GREEN} && cat $file \
+      | $DOS2UNIXPIPE \
+      | grep -vP "^\s*$" $file \
+      | head -n $showrows \
+      | sed "s/^/${WHITE}|${GREEN} /g"
+    rem=$(( $(wc -l $file | awk '{print $1}') - $showrows ))
+    if (( $rem > 0 )); then
+      (( $rem > $showrows )) && rem=$showrows
+      echo -n ${DARKGREEN} && (cat $file && echo) \
+        | $DOS2UNIXPIPE \
+        | grep -vP "^\s*$" $file \
+        | tail -n $rem \
+        | sed "s/^/${WHITE}|${DARKGREEN} /g"
+    fi
+    echo -e "${WHITE}|${CYAN} $url"
+    echo -e "${WHITE}|${CYAN} $file${RESET}"
+    echo -e "${WHITE}|${CYAN} SIGINT to view...${RESET}"
+    echo -e "${WHITE}\`--- END SYNOPSIS -----${RESET}\n\n\n"
+    ) | sed -e "/.\{$cols\}/ s/^\(.\{$(( cols - 20 ))\}\).*\(.\{15\}\)$/\1[...]\2/" \
+      | mcat
 }
 
 function pii(){
@@ -182,9 +302,9 @@ function action(){
     if (( $APPEND_DOMAIN_TO_DATA )); then
       echo $(domain $url) >> $tmp
     fi
-    mecho -en "\r${RESET} [$(ls $loot | wc -l | awk '{print $1}')] ====${WHITE} $url ${RESET}==== [${response}] "
+    mecho -en "${UP}${UP}\r${RESET}$(timestamp_echo)$(freemem_echo)$(lootcount_echo)$(httpcode_echo $response)\n=====${WHITE} $url ${RESET}=====\n"
     if [ "$response" = "200" ]; then
-      echo
+      echo -e "${DOWN}\n"
       #curl -s -A "${useragent}" "${url}" > $tmp
       md5=$(md5sum $tmp | cut -d ' ' -f 1)
       file=${loot}/${md5}
@@ -202,14 +322,9 @@ function action(){
         mecho -e "\n${CYAN}${url} ---> ${file}${RESET}"
         mv $tmp $file
         #rm ${tmp}.pii
-        (echo -n ${GREEN} && head -n 16 $file) | mcat
-        rem=$(( $(wc -l $file | awk '{print $1}') - 16 ))
-        if (( $rem > 0 )); then
-            (( $rem > 16 )) && rem=16
-            (echo -n ${DARKGREEN} && tail -n $rem ${file}) | mcat
-        fi
+        synopsis $file $url
       else
-          mecho -e "\n${YELLOW}[*] fetched ${url}, but data redundant"
+          mecho -e "\n${YELLOW}[*] fetched ${url}, but data redundant\n\n\n"
       fi
     else
         sqlite_execute $db "insert into urls(url, response, pii) values('${url}', '${response}', 0);"
@@ -226,6 +341,35 @@ function throttle(){
     joblist=($(jobs -p))
   done
 }
+
+function look_closer () {
+  S=$(cat $LAST_SYNOPSIS)
+  if [ -z "$S" ]; then
+    pkill curl
+    mecho "${YELLOW}Goodbye!${RESET}"
+    exit
+  fi
+  trap - INT
+  mecho -e "\n${CYAN}Taking a closer look at $S...\n${PINK}HIT CTRL-C AGAIN TO EXIT...${RESET}"
+  sleep 2
+  vim $S
+  sleep 1
+  trap look_closer INT
+}
+trap look_closer INT
+
+#######################################
+# Main 
+######################################
+greet
+
+
+if [ ! -f $db ]; then
+    echo "${YELLOW}$db not found; creating...${RESET}"
+    touch $db
+    sqlite3 $db "create table urls(id integer primary key autoincrement, url varchar(512) unique,  response integer, pii integer, md5 varchar(32), sqltime timestamp default current_timestamp not null);"
+    echo -e "\n"
+fi
 
 if [ "${joblimit}" = "1" ]; then
     while :; do
