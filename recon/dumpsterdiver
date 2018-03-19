@@ -27,6 +27,7 @@ MAGENTA=$'\e[01;35m'
 PURPLE=$'\e[00;35m'
 
 MUTEX=0
+LAST_SYNOPSIS=$(mktemp)
 
 UP=$'\033[1A'
 DOWN=$'\033[1B'
@@ -202,20 +203,27 @@ function domain () {
 function synopsis () {
   file="$1"
   url="$2"
+  cols=$(tput cols)
+  rows=$(tput lines)
+  showrows=$(( (rows - 8) / 2 ))
+  echo $file > $LAST_SYNOPSIS
   clear
   (
     echo "${WHITE},--- BEGIN SYNOPSIS ---"
-    echo -n ${GREEN} && head -n 16 $file \
+    echo -n ${GREEN} && head -n $showrows $file \
       | sed "s/^/${WHITE}|${GREEN} /"
-    rem=$(( $(wc -l $file | awk '{print $1}') - 16 ))
+    rem=$(( $(wc -l $file | awk '{print $1}') - $showrows ))
     if (( $rem > 0 )); then
-      (( $rem > 16 )) && rem=16
+      (( $rem > $showrows )) && rem=$showrows
       echo -n ${DARKGREEN} && tail -n $rem ${file} \
         | sed "s/^/${WHITE}|${DARKGREEN} /"
     fi
-    echo -e "\n${WHITE}|${CYAN} $url\n${WHITE}|${CYAN} $file${RESET}"
+    echo -e "\n${WHITE}|${CYAN} $url"
+    echo -e "${WHITE}|${CYAN} $file${RESET}"
+    echo -e "${WHITE}|${CYAN} SIGINT to view...${RESET}"
     echo -e "${WHITE}\`--- END SYNOPSIS -----${RESET}\n\n"
-  ) | mcat
+    ) | sed -e "/.\{$cols\}/ s/^\(.\{$(( cols - 20 ))\}\).*\(.\{15\}\)$/\1[...]\2/" \
+      | mcat
 }
 
 function pii(){
@@ -303,6 +311,22 @@ function throttle(){
     joblist=($(jobs -p))
   done
 }
+
+function look_closer () {
+  S=$(cat $LAST_SYNOPSIS)
+  if [ -z "$S" ]; then
+    pkill curl
+    mecho "${YELLOW}Goodbye!${RESET}"
+    exit
+  fi
+  trap - INT
+  mecho -e "\n${CYAN}Taking a closer look at $S...\n${PINK}HIT CTRL-C AGAIN TO EXIT...${RESET}"
+  sleep 2
+  vim $S
+  sleep 1
+  trap look_closer INT
+}
+trap look_closer INT
 
 #######################################
 # Main 
