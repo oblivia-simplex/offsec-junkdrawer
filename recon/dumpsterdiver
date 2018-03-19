@@ -354,9 +354,10 @@ function look_closer () {
   fi
   trap cleanup INT
   mecho -e "\n${CYAN}Taking a closer look at $S...\n${PINK}HIT CTRL-C AGAIN TO EXIT...${RESET}"
-  sleep 2
+  wait
+  sleep 1
   $view $S
-  sleep 0
+  sleep 1
   trap look_closer INT
 }
 trap look_closer INT
