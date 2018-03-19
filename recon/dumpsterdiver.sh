@@ -3,6 +3,7 @@
 bin=$1
 db=$2
 useragent=$3
+
 joblimit=16
 
 DARKGREEN=$'\e[00;32m'
@@ -25,8 +26,8 @@ PURPLE=$'\e[00;35m'
 MUTEX=0
 
 [ -n "$bin" ] || bin=ghostbin
-[ -n "$useragent" ] || useragent="Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)"
 loot=$bin-loot
+[ -n "$useragent" ] || useragent="Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)"
 [ -d "$loot" ] || mkdir $loot
 [ -n "$db" ] || db=visited.db
 
@@ -59,7 +60,7 @@ function sqlite_execute(){
             break
         fi
     done
-    mecho "${result}"
+    #mecho "${result}"
 }
 
 if [ ! -f $db ]; then
@@ -111,6 +112,7 @@ function makeurl(){
 }
 
 function pii(){
+    data=$1
     reg_cc="(?:4[0-9]{12}(?:[0-9]{3})?|[25][1-7][0-9]{14}|6(?:011|5[0-9][0-9])[0-9]{12}|3[47][0-9]{13}|3(?:0[0-5]|[68][0-9])[0-9]{11}|(?:2131|1800|35\d{3})\d{11})"
     reg_email="[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,4}"
     reg_pii="${reg_email}|${reg_cc}"
@@ -126,16 +128,18 @@ function action(){
         url=$(makeurl)
         db_url=$(sqlite_execute $db "select url from urls where url = '${url}'")
         if [ "${url}" = "${db_url}" ]; then
-            mecho "${YELLOW}[*] ${url} has already visited generating another"
+            mecho "${YELLOW}[*] ${url} has already visited; generating another..."
         else
             break
         fi
     done
-    response=$(curl -A "${useragent}" --write-out %{http_code} --silent --output /dev/null "${url}")
+    echo -en "\r${RESET} [$(ls $loot | wc -l | awk '{print $1}')] ====${WHITE} $url ${RESET}===="
+    response=$(curl -A "${useragent}" --write-out %{http_code} -I --silent --output /dev/null "${url}")
     if [ "$response" = "200" ]; then
+        echo
         data=$(curl -s -A "${useragent}" "${url}")
         md5=$(mecho -e "${data}" | md5sum | cut -d ' ' -f 1)
-        data_pii=$(pii)
+        data_pii=$(pii "$data")
         db_md5=$(sqlite_execute $db "select hash from hashes where hash = '${md5}';")
         if [ "${db_md5}" != "${md5}" ]; then
             sqlite3 $db "insert into hashes(hash) values('${md5}');"
@@ -150,14 +154,14 @@ function action(){
             mecho "${BLUE}---BEGIN DATA---"
             mecho "${BLUE}${data}"
             mecho "${BLUE}---END DATA---"
-            mecho "${BLUE}[-] writing loot to ${loot}/${md5}"
+            #mecho "${BLUE}[-] writing loot to ${loot}/${md5}"
             mecho "${data}" > $loot/$md5
         else
             mecho "${YELLOW}[*] fetched ${url} however data alredy collected for hash ${md5}"
         fi
     else
         sqlite_execute $db "insert into urls(url, response, pii) values('${url}', '${response}', 0);"
-        mecho "${RED}[x] fetching ${url} failed with response ${response}"
+        #mecho "${RED}[x] fetching ${url} failed with response ${response}"
     fi
 }
 
