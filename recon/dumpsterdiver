@@ -5,6 +5,16 @@ bin=$1
 db=$2
 useragent=$3
 
+if [ -n "$VISUAL" ]; then
+  view=$VISUAL
+elif [ -n "$EDITOR" ]; then
+  view=$EDITOR
+elif [ -n "$PAGER" ]; then
+  view=$PAGER
+else
+  view=more
+fi
+
 APPEND_DOMAIN_TO_DATA=0
 
 joblimit=16
@@ -336,7 +346,7 @@ function look_closer () {
   trap - INT
   mecho -e "\n${CYAN}Taking a closer look at $S...\n${PINK}HIT CTRL-C AGAIN TO EXIT...${RESET}"
   sleep 2
-  vim $S
+  $view $S
   sleep 1
   trap look_closer INT
 }
