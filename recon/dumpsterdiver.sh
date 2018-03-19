@@ -53,8 +53,9 @@ function mcat ()
 
 function sqlite_execute(){
     while :; do
-        result=$(sqlite3 $1 "${2}" 2>&1)
+        result=$(sqlite3 $1 "${2}" 2>&1) #| tee /dev/stderr)
         if [ "${result}" = "Error: database is locked" ]; then
+            sleep 0.01
             continue
         else
             break
@@ -66,8 +67,7 @@ function sqlite_execute(){
 if [ ! -f $db ]; then
     mecho "${YELLOW}[*] dumpsterdiver database not found creating a new one"
     touch $db
-    sqlite_execute $db "create table urls(id integer primary key autoincrement, url varchar(2083) unique, response integer, pii integer, hashes_id integer);"
-    sqlite_execute $db "create table hashes(id integer primary key autoincrement, hash varchar(32) unique);"
+    sqlite_execute $db "create table urls(id integer primary key autoincrement, url varchar(512) unique, response integer, pii integer, md5 varchar(32));"
 fi
 
 function makeurl(){
@@ -114,61 +114,76 @@ function makeurl(){
 
 function pii(){
     file=$1
-    reg_cc="(?:4[0-9]{12}(?:[0-9]{3})?|[25][1-7][0-9]{14}|6(?:011|5[0-9][0-9])[0-9]{12}|3[47][0-9]{13}|3(?:0[0-5]|[68][0-9])[0-9]{11}|(?:2131|1800|35\d{3})\d{11})"
-    reg_email="[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,4}"
-    reg_pii="${reg_email}|${reg_cc}"
-    grep -Ei "${reg_pii}" "${file}" > ${file}.pii \
-        && echo 0 \
-            || echo 1
+    hits=0
+    #reg_cc="(?:4[0-9]{12}(?:[0-9]{3})?|[25][1-7][0-9]{14}|6(?:011|5[0-9][0-9])[0-9]{12}|3[47][0-9]{13}|3(?:0[0-5]|[68][0-9])[0-9]{11}|(?:2131|1800|35\d{3})\d{11})"
+    cat $file \
+      | grep -P "([0-9]{1,3}\.){3}[0-9]{1,3}" \
+      | grep -vP "(127(\.[0-9]{1,3}){3}|0\.0\.0\.0)" \
+      >> ${file}.pii \
+      && hits=$(( hits + 1 ))
+    
+    # now look for cryptocurrency keys
+    cat $file \
+      | grep -wP '[5KL][1-9A-HJ-NP-Za-km-z]{50,51}' \
+      >> ${file}.pii \
+      && hits=$(( hits + 1 ))
+
+    # email
+    cat $file \
+      | grep -P "[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,4}" \
+      >> ${file}.pii \
+      && hits=$(( hits + 1 ))
+
+    # private keys and credentials
+    cat $file \
+      | grep -P "(PRIVATE KEY|password|credential|0day)" \
+      >> ${file}.pii \
+      && hits=$(( hits + 1 ))
+    
+    echo $hits
 }
 
 function action(){
     while :; do
-        url=$(makeurl)
-        db_url=$(sqlite_execute $db "select url from urls where url = '${url}'")
-        if [ "${url}" = "${db_url}" ]; then
-            mecho "${YELLOW}[*] ${url} has already visited; generating another..."
-        else
-            break
-        fi
+      url=$(makeurl)
+      db_url=$(sqlite_execute $db "select url from urls where url = '${url}'")
+      if [ "${url}" = "${db_url}" ]; then
+          mecho -e "\n${YELLOW}--- Already visited ${url} ---"
+      else
+          break
+      fi
     done
     response=$(curl -A "${useragent}" --write-out %{http_code} -I --silent --output /dev/null "${url}")
     mecho -en "\r${RESET} [$(ls $loot | wc -l | awk '{print $1}')] ====${WHITE} $url ${RESET}==== [${response}] "
     if [ "$response" = "200" ]; then
-        echo
-        tmp=$(mktemp)
-        curl -s -A "${useragent}" "${url}" > $tmp
-        md5=$(md5sum $tmp | cut -d ' ' -f 1)
-        echo ">>> md5: $md5"
-        data_pii=$(pii $tmp)
-        db_md5=$(sqlite_execute $db "select hash from hashes where hash = '${md5}';")
-        if [ "${db_md5}" != "${md5}" ]; then
-            sqlite3 $db "insert into hashes(hash) values('${md5}');"
-            hashes_id=$(sqlite_execute $db "select id from hashes where hash = '${md5}'")
-            if (( "${data_pii}" )); then
-                sqlite3 $db "insert into urls(url, response, pii, hashes_id) values('${url}', '${response}', 0, ${hashes_id});"
-            else
-                mecho -e "\n${PINK}[*] found potential pii${RED}"
-                mcat ${tmp}.pii
-                echo "${RESET}"
-                echo ">> url: $url"
-                echo ">> response: $response"
-                echo ">> hashes_id: $hashes_id"
-                sqlite3 $db "insert into urls(url, response, pii, hashes_id) values('${url}', '${response}', 1, ${hashes_id});"
-            fi
-            file=${loot}/${md5}
-            mecho "${CYAN}[+] ${url} -> ${file}${RESET}"
-            mv $tmp $file
-            rm ${tmp}.pii
-            (echo -n ${GREEN} && head -n 16 $file) | mcat
-            rem=$(( $(wc -l $file | awk '{print $1}') - 16 ))
-            if (( $rem > 0 )); then
-                (( $rem > 16 )) && rem=16
-                (echo -n ${DARKGREEN} && tail -n $rem ${file}) | mcat
-            fi
+      echo
+      tmp=$(mktemp)
+      curl -s -A "${useragent}" "${url}" > $tmp
+      md5=$(md5sum $tmp | cut -d ' ' -f 1)
+      file=${loot}/${md5}
+      if ! [ -f "$file" ]; then
+        data_pii=0 #data_pii=$(pii $tmp)
+        if ! (( "${data_pii}" )); then
+          echo -n "$MAGENTA"
+          sqlite3 $db "insert into urls(url, response, pii, md5) values('${url}', '${response}', 0, '${md5}');"
         else
-            mecho "${YELLOW}[*] fetched ${url} however data alredy collected for hash ${md5}"
+          mecho -e "\n${PINK}[*] found $data_pii potential pii${RED}"
+          mcat ${tmp}.pii
+          echo -n "${RESET}"
+          sqlite3 $db "insert into urls(url, response, pii, md5) values('${url}', '${response}', 1, '${md5}');"
         fi
+        mecho -e "\n${CYAN}${url} ---> ${file}${RESET}"
+        mv $tmp $file
+        rm ${tmp}.pii
+        (echo -n ${GREEN} && head -n 16 $file) | mcat
+        rem=$(( $(wc -l $file | awk '{print $1}') - 16 ))
+        if (( $rem > 0 )); then
+            (( $rem > 16 )) && rem=16
+            (echo -n ${DARKGREEN} && tail -n $rem ${file}) | mcat
+        fi
+      else
+          mecho -e "\n${YELLOW}[*] fetched ${url}, but data redundant"
+      fi
     else
         sqlite_execute $db "insert into urls(url, response, pii) values('${url}', '${response}', 0);"
         #mecho "${RED}[x] fetching ${url} failed with response ${response}"
