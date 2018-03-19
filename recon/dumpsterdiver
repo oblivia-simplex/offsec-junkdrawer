@@ -6,6 +6,9 @@ db=$2
 useragent=$3
 
 ENABLE_SYNOPSES=1
+if [ "$bin" = pasteboard ]; then
+  ENABLE_SYNOPSES=0
+fi
 
 if [ -n "$VISUAL" ]; then
   view=$VISUAL
@@ -209,6 +212,15 @@ function makeurl(){
             prefix="http://p.ip.fi"
             key=$(cat /dev/urandom | tr -dc $charset | head -c $n)
             echo "${prefix}/${key}"
+            ;;
+        pasteboard)
+            n=4
+            charset=A-Za-z0-9
+            prefix="https://pasteboard.co/images/"
+            prekey=HcF # is this invariant?
+            key=$(cat /dev/urandom | tr -dc $charset | head -c $n)
+            suffix=/download
+            echo "${prefix}/${prekey}${key}/${suffix}"
             ;;
     esac
 }
