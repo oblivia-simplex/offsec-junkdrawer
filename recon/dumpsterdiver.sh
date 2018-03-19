@@ -174,7 +174,7 @@ function action(){
         fi
         mecho -e "\n${CYAN}${url} ---> ${file}${RESET}"
         mv $tmp $file
-        rm ${tmp}.pii
+        #rm ${tmp}.pii
         (echo -n ${GREEN} && head -n 16 $file) | mcat
         rem=$(( $(wc -l $file | awk '{print $1}') - 16 ))
         if (( $rem > 0 )); then
