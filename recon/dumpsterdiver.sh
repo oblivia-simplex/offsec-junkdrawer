@@ -111,9 +111,15 @@ function makeurl(){
 }
 
 function pii(){
-    reg_cc="(?:4[0-9]{12}(?:[0-9]{3})?|[25][1-7][0-9]{14}|6(?:011|5[0-9][0-9])[0-9]{12}|3[47][0-9]{13}|3(?:0[0-5]|[68][0-9])[0-9]{11}|(?:2131|1800|35\d{3})\d{11})"
+    reg_cc_amex="3[47][0-9]{13}"
+    reg_cc_visa="4[0-9]{12}(?:[0-9]{3})?"
+    reg_cc_mastercard="5[1-5][0-9]{14}"
+    reg_cc_unionpay="62[0-9]{14,17}"
+    reg_cc_instapayment="63[7-9][0-9]{13}"
+    reg_cc_dinersclub="3(?:0[0-5]|[68][0-9])[0-9]{11}"
+    reg_ssn="[0-9]{3}-[0-9]{2}-[0-9]{4}"
     reg_email="[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,4}"
-    reg_pii="${reg_email}|${reg_cc}"
+    reg_pii="${reg_email}|${reg_cc_amex}|${reg_cc_visa}|${reg_cc_mastercard}|${reg_cc_instapayment}|${reg_cc_unionpay}|${reg_cc_dinersclub}|${reg_ssn}"
     data_pii=$(mecho $data | grep -Eio $reg_pii)
     if mecho $data | grep -Eiq $reg_pii
         then mecho $data_pii
