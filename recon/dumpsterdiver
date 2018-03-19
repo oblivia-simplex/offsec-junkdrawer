@@ -234,7 +234,7 @@ function synopsis () {
     fi
     echo -e "${WHITE}|${CYAN} $url"
     echo -e "${WHITE}|${CYAN} $file${RESET}"
-    echo -e "${WHITE}| $bytes bytes;${CYAN} SIGINT to view...${RESET}"
+    echo -e "${WHITE}|${CYAN} $bytes bytes: SIGINT to view${RESET}"
     echo -e "${WHITE}\`--- END SYNOPSIS -----${RESET}\n\n\n"
     ) | sed -e "/.\{$cols\}/ s/^\(.\{$(( cols - 20 ))\}\).*\(.\{15\}\)$/\1[...]\2/" \
       | mcat
