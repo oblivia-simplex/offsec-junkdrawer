@@ -4,6 +4,8 @@ bin=$1
 db=$2
 useragent=$3
 
+APPEND_DOMAIN_TO_DATA=0
+
 joblimit=16
 
 DARKGREEN=$'\e[00;32m'
@@ -112,6 +114,11 @@ function makeurl(){
     esac
 }
 
+function domain () {
+  url=$1
+  echo $url | cut -d "/" -f 3
+}
+
 function pii(){
     file=$1
     hits=0
@@ -155,6 +162,9 @@ function action(){
     done
     tmp=$(mktemp)
     response=$(curl -A "${useragent}" --write-out %{http_code} --silent --output $tmp "${url}")
+    if (( $APPEND_DOMAIN_TO_DATA )); then
+      echo $(domain $url) >> $tmp
+    fi
     mecho -en "\r${RESET} [$(ls $loot | wc -l | awk '{print $1}')] ====${WHITE} $url ${RESET}==== [${response}] "
     if [ "$response" = "200" ]; then
       echo
