@@ -5,6 +5,8 @@ bin=$1
 db=$2
 useragent=$3
 
+ENABLE_SYNOPSES=1
+
 if [ -n "$VISUAL" ]; then
   view=$VISUAL
 elif [ -n "$EDITOR" ]; then
@@ -306,17 +308,17 @@ function action(){
         data_pii=0 #data_pii=$(pii $tmp)
         if ! (( "${data_pii}" )); then
           echo -n "$MAGENTA"
-          sqlite3 $db "insert into urls(url, response, pii, md5) values('${url}', '${response}', 0, '${md5}');"
+          sqlite_execute $db "insert into urls(url, response, pii, md5) values('${url}', '${response}', 0, '${md5}');"
         else
           mecho -e "\n${PINK}[*] found $data_pii potential pii${RED}"
           mcat ${tmp}.pii
           echo -n "${RESET}"
-          sqlite3 $db "insert into urls(url, response, pii, md5) values('${url}', '${response}', 1, '${md5}');"
+          sqlite_execute $db "insert into urls(url, response, pii, md5) values('${url}', '${response}', 1, '${md5}');"
         fi
         mecho -e "\n${CYAN}${url} ---> ${file}${RESET}"
         mv $tmp $file
         #rm ${tmp}.pii
-        synopsis $file $url
+        (( $ENABLE_SYNOPSES )) && synopsis $file $url
       else
           mecho -e "\n${YELLOW}[*] fetched ${url}, but data redundant\n\n\n"
       fi
