@@ -212,6 +212,7 @@ function synopsis () {
   cols=$(tput cols)
   rows=$(tput lines)
   showrows=$(( (rows - 10) / 2 ))
+  bytes=$(wc -c $file | awk '{print $1}')
 
   echo $file > $LAST_SYNOPSIS
   clear
@@ -233,7 +234,7 @@ function synopsis () {
     fi
     echo -e "${WHITE}|${CYAN} $url"
     echo -e "${WHITE}|${CYAN} $file${RESET}"
-    echo -e "${WHITE}|${CYAN} SIGINT to view...${RESET}"
+    echo -e "${WHITE}| $bytes bytes;${CYAN} SIGINT to view...${RESET}"
     echo -e "${WHITE}\`--- END SYNOPSIS -----${RESET}\n\n\n"
     ) | sed -e "/.\{$cols\}/ s/^\(.\{$(( cols - 20 ))\}\).*\(.\{15\}\)$/\1[...]\2/" \
       | mcat
