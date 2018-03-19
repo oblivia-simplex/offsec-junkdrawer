@@ -29,6 +29,12 @@ PURPLE=$'\e[00;35m'
 MUTEX=0
 LAST_SYNOPSIS=$(mktemp)
 
+if which dos2unix &> /dev/null ; then
+  DOS2UNIXPIPE=dos2unix 
+else
+  DOS2UNIXPIPE=cat
+fi
+
 UP=$'\033[1A'
 DOWN=$'\033[1B'
 
@@ -50,9 +56,9 @@ ____/ \__,_|_|  _|  _| .__/ ____/\__|\___|_|    ____/ _|  \_/ \___|_|
    //               //                  / /    ||
  //_______________//   '${YELLOW}'o o'${DARKGREEN}'            / /      ||      ___/-\___
 ------------------------------------/   ------- |     |---------|
-| '${GREEN}'BRUTE FORCE '${DARKGREEN}'|         |'${GREEN}'FIND WEIRD'${DARKGREEN}' |           |      | | | | |
-|  '${GREEN}'PASTEBINS'${DARKGREEN}'  |         |   '${GREEN}'SHIT'${DARKGREEN}'    |           |      | | | | |
-|--------------         ------------|           |      | | | | |
+| '${GREEN}'BRUTE FORCE '${DARKGREEN}'|        | '${GREEN}'FIND WEIRD'${DARKGREEN}' |           |      | | | | |
+|  '${GREEN}'PASTEBINS'${DARKGREEN}'  |        |    '${GREEN}'SHIT'${DARKGREEN}'    |           |      | | | | |
+|--------------        -------------|           |      | | | | |
 |                                   |           |      | | | | |
 -------------------------------------------------      |_______|
 
@@ -206,24 +212,29 @@ function synopsis () {
   cols=$(tput cols)
   rows=$(tput lines)
   showrows=$(( (rows - 10) / 2 ))
+
   echo $file > $LAST_SYNOPSIS
   clear
   (
     echo "${WHITE},--- BEGIN SYNOPSIS ---"
-    echo -n ${GREEN} && grep -v "^$" $file \
+    echo -n ${GREEN} && cat $file \
+      | $DOS2UNIXPIPE \
+      | grep -vP "^\s*$" $file \
       | head -n $showrows \
-      | sed "s/^/${WHITE}|${GREEN} /"
+      | sed "s/^/${WHITE}|${GREEN} /g"
     rem=$(( $(wc -l $file | awk '{print $1}') - $showrows ))
     if (( $rem > 0 )); then
       (( $rem > $showrows )) && rem=$showrows
-      echo -n ${DARKGREEN} && grep -v "^$" $file \
+      echo -n ${DARKGREEN} && (cat $file && echo) \
+        | $DOS2UNIXPIPE \
+        | grep -vP "^\s*$" $file \
         | tail -n $rem \
-        | sed "s/^/${WHITE}|${DARKGREEN} /"
+        | sed "s/^/${WHITE}|${DARKGREEN} /g"
     fi
-    echo -e "\n${WHITE}|${CYAN} $url"
+    echo -e "${WHITE}|${CYAN} $url"
     echo -e "${WHITE}|${CYAN} $file${RESET}"
     echo -e "${WHITE}|${CYAN} SIGINT to view...${RESET}"
-    echo -e "${WHITE}\`--- END SYNOPSIS -----${RESET}\n\n"
+    echo -e "${WHITE}\`--- END SYNOPSIS -----${RESET}\n\n\n"
     ) | sed -e "/.\{$cols\}/ s/^\(.\{$(( cols - 20 ))\}\).*\(.\{15\}\)$/\1[...]\2/" \
       | mcat
 }
