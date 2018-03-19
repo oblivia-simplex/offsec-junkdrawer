@@ -294,7 +294,7 @@ function action(){
         #rm ${tmp}.pii
         synopsis $file $url
       else
-          mecho -e "\n${YELLOW}[*] fetched ${url}, but data redundant\n"
+          mecho -e "\n${YELLOW}[*] fetched ${url}, but data redundant\n\n\n"
       fi
     else
         sqlite_execute $db "insert into urls(url, response, pii) values('${url}', '${response}', 0);"
