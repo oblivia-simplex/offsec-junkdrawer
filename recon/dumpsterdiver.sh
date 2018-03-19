@@ -4,7 +4,7 @@ bin=$1
 db=$2
 useragent=$3
 
-joblimit=2
+joblimit=16
 
 DARKGREEN=$'\e[00;32m'
 GREEN=$'\e[01;32m'
@@ -153,12 +153,12 @@ function action(){
           break
       fi
     done
-    response=$(curl -A "${useragent}" --write-out %{http_code} -I --silent --output /dev/null "${url}")
+    tmp=$(mktemp)
+    response=$(curl -A "${useragent}" --write-out %{http_code} --silent --output $tmp "${url}")
     mecho -en "\r${RESET} [$(ls $loot | wc -l | awk '{print $1}')] ====${WHITE} $url ${RESET}==== [${response}] "
     if [ "$response" = "200" ]; then
       echo
-      tmp=$(mktemp)
-      curl -s -A "${useragent}" "${url}" > $tmp
+      #curl -s -A "${useragent}" "${url}" > $tmp
       md5=$(md5sum $tmp | cut -d ' ' -f 1)
       file=${loot}/${md5}
       if ! [ -f "$file" ]; then
@@ -186,6 +186,7 @@ function action(){
       fi
     else
         sqlite_execute $db "insert into urls(url, response, pii) values('${url}', '${response}', 0);"
+        rm -f $tmp
         #mecho "${RED}[x] fetching ${url} failed with response ${response}"
     fi
 }
