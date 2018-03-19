@@ -204,15 +204,17 @@ function synopsis () {
   url="$2"
   clear
   (
-    echo "${WHITE}--- BEGIN SYNOPSIS ---"
-    echo -n ${GREEN} && head -n 16 $file
+    echo "${WHITE},--- BEGIN SYNOPSIS ---"
+    echo -n ${GREEN} && head -n 16 $file \
+      | sed "s/^/${WHITE}|${GREEN} /"
     rem=$(( $(wc -l $file | awk '{print $1}') - 16 ))
     if (( $rem > 0 )); then
       (( $rem > 16 )) && rem=16
-      echo -n ${DARKGREEN} && tail -n $rem ${file}
+      echo -n ${DARKGREEN} && tail -n $rem ${file} \
+        | sed "s/^/${WHITE}|${DARKGREEN} /"
     fi
-    echo -e "\n${CYAN}| $url\n| $file${RESET}"
-    echo -e "${WHITE}--- END SYNOPSIS ---${RESET}\n\n"
+    echo -e "\n${WHITE}|${CYAN} $url\n${WHITE}|${CYAN} $file${RESET}"
+    echo -e "${WHITE}\`--- END SYNOPSIS -----${RESET}\n\n"
   ) | mcat
 }
 
