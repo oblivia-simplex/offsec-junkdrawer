@@ -210,12 +210,14 @@ function synopsis () {
   clear
   (
     echo "${WHITE},--- BEGIN SYNOPSIS ---"
-    echo -n ${GREEN} && head -n $showrows $file \
+    echo -n ${GREEN} && grep -v "^$" $file \
+      | head -n $showrows \
       | sed "s/^/${WHITE}|${GREEN} /"
     rem=$(( $(wc -l $file | awk '{print $1}') - $showrows ))
     if (( $rem > 0 )); then
       (( $rem > $showrows )) && rem=$showrows
-      echo -n ${DARKGREEN} && tail -n $rem ${file} \
+      echo -n ${DARKGREEN} && grep -v "^$" $file \
+        | tail -n $rem \
         | sed "s/^/${WHITE}|${DARKGREEN} /"
     fi
     echo -e "\n${WHITE}|${CYAN} $url"
