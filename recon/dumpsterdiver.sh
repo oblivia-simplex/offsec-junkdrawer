@@ -74,7 +74,7 @@ function greet ()
   echo "${DARKGREEN}Using: pastebin:   $bin"
   echo             "       database:   $db"
   echo             "       user-agent: \"$useragent\""
-  echo "${GREEN}HIT <ENTER> TO CONTINUE...${RESET}"
+  echo -e "\n${GREEN}HIT <ENTER> TO CONTINUE...${RESET}"
   read
   echo -e "\n"
 }
