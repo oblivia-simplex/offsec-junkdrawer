@@ -151,11 +151,16 @@ function action(){
                 sqlite3 $db "insert into urls(url, response, pii, hashes_id) values('${url}', '${response}', 1, ${hashes_id});"
             fi
             mecho "${GREEN}[-] fetched ${url} with response ${response} and md5sum of ${md5}"
-            mecho "${BLUE}---BEGIN DATA---"
-            mecho "${BLUE}${data}"
-            mecho "${BLUE}---END DATA---"
+            echo "${data}" > $loot/$md5
+            mecho "${BLUE}---BEGIN DATA---${RESET}"
+            (echo -n ${GREEN} && head -n 16 ${md5}) | mcat
+            rem=$(( $(wc -l $md5 | awk '{print $1}') - 16 ))
+            if (( $rem > 0 )); then
+                (( $rem > 16 )) && rem=16
+                (echo -n ${DARKGREEN} && tail -n $rem ${md5}) | mcat
+            fi
+            mecho "${BLUE}---END DATA---${RESET}"
             #mecho "${BLUE}[-] writing loot to ${loot}/${md5}"
-            mecho "${data}" > $loot/$md5
         else
             mecho "${YELLOW}[*] fetched ${url} however data alredy collected for hash ${md5}"
         fi
