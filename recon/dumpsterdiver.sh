@@ -152,12 +152,6 @@ function sqlite_execute(){
     #mecho "${result}"
 }
 
-if [ ! -f $db ]; then
-    mecho "${YELLOW}[*] dumpsterdiver database not found creating a new one"
-    touch $db
-    sqlite_execute $db "create table urls(id integer primary key autoincrement, url varchar(512) unique, response integer, pii integer, md5 varchar(32));"
-fi
-
 function makeurl(){
     case "$bin" in
         termbin)
@@ -312,6 +306,14 @@ function throttle(){
 # Main 
 ######################################
 greet
+
+
+if [ ! -f $db ]; then
+    echo "${YELLOW}$db not found; creating...${RESET}"
+    touch $db
+    sqlite3 $db "create table urls(id integer primary key autoincrement, url varchar(512) unique,  response integer, pii integer, md5 varchar(32), sqltime timestamp default current_timestamp not null);"
+    echo -e "\n"
+fi
 
 if [ "${joblimit}" = "1" ]; then
     while :; do
