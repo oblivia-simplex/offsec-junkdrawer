@@ -117,7 +117,7 @@ function pii(){
     reg_cc="(?:4[0-9]{12}(?:[0-9]{3})?|[25][1-7][0-9]{14}|6(?:011|5[0-9][0-9])[0-9]{12}|3[47][0-9]{13}|3(?:0[0-5]|[68][0-9])[0-9]{11}|(?:2131|1800|35\d{3})\d{11})"
     reg_email="[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,4}"
     reg_pii="${reg_email}|${reg_cc}"
-    grep -Ei $reg_pii "${file}" > ${file}.pii \
+    grep -Ei "${reg_pii}" "${file}" > ${file}.pii \
         && echo 0 \
             || echo 1
 }
@@ -139,6 +139,7 @@ function action(){
         tmp=$(mktemp)
         curl -s -A "${useragent}" "${url}" > $tmp
         md5=$(md5sum $tmp | cut -d ' ' -f 1)
+        echo ">>> md5: $md5"
         data_pii=$(pii $tmp)
         db_md5=$(sqlite_execute $db "select hash from hashes where hash = '${md5}';")
         if [ "${db_md5}" != "${md5}" ]; then
@@ -147,18 +148,23 @@ function action(){
             if (( "${data_pii}" )); then
                 sqlite3 $db "insert into urls(url, response, pii, hashes_id) values('${url}', '${response}', 0, ${hashes_id});"
             else
-                mecho "${PINK}[*] found potential pii${RED}"
-                cat ${tmp}.pii
+                mecho -e "\n${PINK}[*] found potential pii${RED}"
+                mcat ${tmp}.pii
+                echo "${RESET}"
+                echo ">> url: $url"
+                echo ">> response: $response"
+                echo ">> hashes_id: $hashes_id"
                 sqlite3 $db "insert into urls(url, response, pii, hashes_id) values('${url}', '${response}', 1, ${hashes_id});"
             fi
-            mecho "${CYAN}[+] ${url} -> ${loot}/${md5}${RESET}"
-            mv $tmp $loot/$md5
-            rm ${tmp}.pi
-            (echo -n ${GREEN} && head -n 16 ${md5}) | mcat
-            rem=$(( $(wc -l $md5 | awk '{print $1}') - 16 ))
+            file=${loot}/${md5}
+            mecho "${CYAN}[+] ${url} -> ${file}${RESET}"
+            mv $tmp $file
+            rm ${tmp}.pii
+            (echo -n ${GREEN} && head -n 16 $file) | mcat
+            rem=$(( $(wc -l $file | awk '{print $1}') - 16 ))
             if (( $rem > 0 )); then
                 (( $rem > 16 )) && rem=16
-                (echo -n ${DARKGREEN} && tail -n $rem ${md5}) | mcat
+                (echo -n ${DARKGREEN} && tail -n $rem ${file}) | mcat
             fi
         else
             mecho "${YELLOW}[*] fetched ${url} however data alredy collected for hash ${md5}"
