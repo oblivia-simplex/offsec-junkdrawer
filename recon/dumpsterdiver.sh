@@ -93,7 +93,7 @@ function makeurl(){
             charset=a-z0-9
             prefix="https://ghostbin.com/paste"
             key=$(cat /dev/urandom | tr -dc $charset | head -c $n)
-            suffix="download"
+            suffix="raw" # or download
             echo "${prefix}/${key}/${suffix}"
             ;;
         pasteee)
