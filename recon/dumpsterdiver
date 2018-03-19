@@ -333,23 +333,30 @@ function throttle(){
   joblimit=$1
   joblist=($(jobs -p))
   while (( ${#joblist[*]} >= $joblimit )); do
-    sleep 1
+    sleep 0.5
     joblist=($(jobs -p))
   done
+}
+
+function cleanup () {
+  joblist=($(jobs -p))
+  jn=${#joblist[*]} 
+  echo "${YELLOW}Waiting for $jn jobs to finish...${RESET}"
+  wait
+  echo "${YELLOW}Goodbye!${RESET}"
+  exit
 }
 
 function look_closer () {
   S=$(cat $LAST_SYNOPSIS)
   if [ -z "$S" ]; then
-    pkill curl
-    mecho "${YELLOW}Goodbye!${RESET}"
-    exit
+    cleanup
   fi
-  trap - INT
+  trap cleanup INT
   mecho -e "\n${CYAN}Taking a closer look at $S...\n${PINK}HIT CTRL-C AGAIN TO EXIT...${RESET}"
   sleep 2
   $view $S
-  sleep 1
+  sleep 0
   trap look_closer INT
 }
 trap look_closer INT
