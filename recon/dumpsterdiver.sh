@@ -4,7 +4,7 @@ bin=$1
 db=$2
 useragent=$3
 
-joblimit=16
+joblimit=2
 
 DARKGREEN=$'\e[00;32m'
 GREEN=$'\e[01;32m'
@@ -132,10 +132,8 @@ function action(){
             break
         fi
     done
-    echo -en "\r${RESET} [$(ls $loot | wc -l | awk '{print $1}')] "
-    echo -en "====${WHITE} $url ${RESET}===="
     response=$(curl -A "${useragent}" --write-out %{http_code} -I --silent --output /dev/null "${url}")
-    echo -n " [$response] "
+    mecho -en "\r${RESET} [$(ls $loot | wc -l | awk '{print $1}')] ====${WHITE} $url ${RESET}==== [${response}] "
     if [ "$response" = "200" ]; then
         echo
         tmp=$(mktemp)
