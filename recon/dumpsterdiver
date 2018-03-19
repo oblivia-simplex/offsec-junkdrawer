@@ -205,7 +205,7 @@ function synopsis () {
   url="$2"
   cols=$(tput cols)
   rows=$(tput lines)
-  showrows=$(( (rows - 8) / 2 ))
+  showrows=$(( (rows - 10) / 2 ))
   echo $file > $LAST_SYNOPSIS
   clear
   (
