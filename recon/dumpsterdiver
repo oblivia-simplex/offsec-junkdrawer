@@ -277,7 +277,7 @@ function makeurl(){
         paste.ee)
             n=5
             charset=a-z0-9
-            prefix="https://paste.ee/p"
+            prefix="https://paste.ee/d"
             key=$(cat /dev/urandom  | tr -dc $charset | head -c $n)
             suffix="0"
             echo "${prefix}/${key}/${suffix}"
