@@ -376,7 +376,7 @@ function action(){
                --silent \
                --output $tmp "${url}")
     mutex_acquire
-    echo -e "${BOTTOM}${UP}${UP}\r${RESET}$(timestamp_echo)$(freemem_echo)$(lootcount_echo)$(httpcode_echo $response)$(hitrate_echo)\n$(fadebar 2) ${WHITE} $url $(fadebar -2)"
+    echo -e "${BOTTOM}${UP}${UP}\r${RESET}$(timestamp_echo)$(freemem_echo)$(lootcount_echo)$(httpcode_echo $response)$(hitrate_echo)\n$(fadebar 2)${WHITE} $url $(fadebar -2)"
     if [ "$response" = "200" ]; then
       md5=$(md5sum $tmp | cut -d ' ' -f 1)
       file=${loot}/${md5}
