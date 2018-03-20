@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
 
 script=$0
-bin=$1
+domain=$1
 db=$2
 useragent=$3
 
 ENABLE_SYNOPSES=1
-if [ "$bin" = pasteboard ]; then
+if [ "$domain" = pasteboard ]; then
   ENABLE_SYNOPSES=0
 fi
 
@@ -52,7 +52,8 @@ fi
 
 UP=$'\033[1A'
 DOWN=$'\033[1B'
-
+SAVE=$'\033[s'
+RESTORE=$'\033[u'
 BANNER=${GREEN}'
  __ \                             |              __ \ _)                 
  |   | |   | __ `__ \  __ \   __| __|  _ \  __|  |   | |\ \   / _ \  __| 
@@ -84,8 +85,8 @@ function greet ()
   default_bin=ghostbin
   default_ua="Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)"
   default_db="visited.db"
-  [ -n "$bin" ] || bin="$default_bin"
-  loot=$bin-loot
+  [ -n "$domain" ] || bin="$default_bin"
+  loot=$domain-loot
   [ -n "$useragent" ] || useragent="$default_ua"
   [ -d "$loot" ] || mkdir $loot
   [ -n "$db" ] || db="$default_db"
@@ -93,7 +94,7 @@ function greet ()
   echo "${DARKGREEN}"
   echo "${BANNER}"
   echo "${GREEN}Usage: $script [pastebin name] [sqlite3 db] [user agent]"
-  echo "${DARKGREEN}Using: pastebin:   $bin"
+  echo "${DARKGREEN}Using: domain:     $domain"
   echo             "       database:   $db"
   echo             "       user-agent: \"$useragent\""
   echo -e "\n${GREEN}HIT <ENTER> TO CONTINUE...${RESET}"
@@ -141,6 +142,20 @@ function timestamp_echo ()
   echo "${DARKGREY}[$(date +"%F %T")]${RESET}"
 }
 
+function mutex_acquire ()
+{
+  while (( $MUTEX )); do
+    sleep 0.1
+  done
+  MUTEX=1
+}
+
+function mutex_release ()
+{
+  MUTEX=0
+}
+
+
 function mecho ()
 {
   while (( $MUTEX )); do
@@ -171,26 +186,26 @@ function sqlite_execute(){
             break
         fi
     done
-    #mecho "${result}"
+    echo -n "${result}"
 }
 
 function makeurl(){
-    case "$bin" in
-        termbin)
+    case "$domain" in
+        termbin.com)
             n=4
             charset=a-z0-9
             prefix="http://termbin.com"
             key=$(cat /dev/urandom | tr -dc $charset | head -c $n)
             echo "${prefix}/${key}"
             ;;
-        pastebin)
+        pastebin.com)
             n=8
             charset=a-z0-9
             prefix="https://pastebin.com/raw"
             key=$(cat /dev/urandom  | tr -dc $charset | head -c $n)
             echo "${prefix}/${key}"
             ;;
-        ghostbin)
+        ghostbin.com)
             n=5
             charset=a-z0-9
             prefix="https://ghostbin.com/paste"
@@ -198,7 +213,7 @@ function makeurl(){
             suffix="raw" # or download
             echo "${prefix}/${key}/${suffix}"
             ;;
-        pasteee)
+        paste.ee)
             n=5
             charset=a-z0-9
             prefix="https://paste.ee/p"
@@ -206,14 +221,14 @@ function makeurl(){
             suffix="0"
             echo "${prefix}/${key}"
             ;;
-        pipfi)
+        p.ip.fi)
             n=4
             charset=a-z0-9
             prefix="http://p.ip.fi"
             key=$(cat /dev/urandom | tr -dc $charset | head -c $n)
             echo "${prefix}/${key}"
             ;;
-        pasteboard)
+        pasteboard.co)
             n=4
             charset=A-Za-z0-9
             prefix="https://pasteboard.co/images/"
@@ -295,10 +310,20 @@ function pii(){
     echo $hits
 }
 
+function hitrate () {
+  sqlite_execute $db "SELECT (count(md5)*1.0)/count(*) 
+                      FROM urls 
+                      WHERE url LIKE '%$domain%';"
+}
+
+function hitrate_echo () {
+  echo "${DARKGREY}[hit $(printf "%1.4f" $(hitrate))]${RESET}"
+}
+
 function action(){
     while :; do
       url=$(makeurl)
-      db_url=$(sqlite_execute $db "select url from urls where url = '${url}'")
+      db_url=$(sqlite_execute $db "SELECT url FROM urls WHERE url = '${url}'")
       if [ "${url}" = "${db_url}" ]; then
           mecho -e "\n${YELLOW}--- Already visited ${url} ---"
       else
@@ -310,34 +335,36 @@ function action(){
     if (( $APPEND_DOMAIN_TO_DATA )); then
       echo $(domain $url) >> $tmp
     fi
-    mecho -en "${UP}${UP}\r${RESET}$(timestamp_echo)$(freemem_echo)$(lootcount_echo)$(httpcode_echo $response)\n=====${WHITE} $url ${RESET}=====\n"
+    mecho -en "${UP}${UP}\r${RESET}$(timestamp_echo)$(freemem_echo)$(lootcount_echo)$(httpcode_echo $response)$(hitrate_echo)\n=====${WHITE} $url ${RESET}=====\n"
     if [ "$response" = "200" ]; then
+      mutex_acquire
       echo -e "${DOWN}\n"
-      #curl -s -A "${useragent}" "${url}" > $tmp
       md5=$(md5sum $tmp | cut -d ' ' -f 1)
       file=${loot}/${md5}
       if ! [ -f "$file" ]; then
         data_pii=0 #data_pii=$(pii $tmp)
         if ! (( "${data_pii}" )); then
           echo -n "$MAGENTA"
-          sqlite_execute $db "insert into urls(url, response, pii, md5) values('${url}', '${response}', 0, '${md5}');"
+          sqlite_execute $db "INSERT INTO urls(url, response, pii, md5) VALUES('${url}', '${response}', 0, '${md5}');"
         else
-          mecho -e "\n${PINK}[*] found $data_pii potential pii${RED}"
-          mcat ${tmp}.pii
+          echo -e "\n${PINK}[*] found $data_pii potential pii${RED}"
+          cat ${tmp}.pii
           echo -n "${RESET}"
-          sqlite_execute $db "insert into urls(url, response, pii, md5) values('${url}', '${response}', 1, '${md5}');"
+          sqlite_execute $db "INSERT INTO urls(url, response, pii, md5) VALUES('${url}', '${response}', 1, '${md5}');"
         fi
-        mecho -e "\n${CYAN}${url} ---> ${file}${RESET}"
+        echo -e "\n${CYAN}${url} ---> ${file}${RESET}"
         mv $tmp $file
         #rm ${tmp}.pii
         (( $ENABLE_SYNOPSES )) && synopsis $file $url
       else
-          mecho -e "\n${YELLOW}[*] fetched ${url}, but data redundant\n\n\n"
+          echo -en "${SAVE}${UP}${UP}${YELLOW}[*] fetched ${url}, but data redundant${RESET}${RESTORE}\r"
       fi
+      mutex_release
     else
-        sqlite_execute $db "insert into urls(url, response, pii) values('${url}', '${response}', 0);"
-        rm -f $tmp
-        #mecho "${RED}[x] fetching ${url} failed with response ${response}"
+      mutex_acquire
+      sqlite_execute $db "INSERT INTO urls(url, response, pii) VALUES('${url}', '${response}', 0);"
+      rm -f $tmp
+      mutex_release
     fi
 }
 
@@ -365,7 +392,7 @@ function look_closer () {
     cleanup
   fi
   trap - INT
-  trap cleanup INT
+#  trap cleanup INT
   mecho -e "\n${CYAN}Taking a closer look at $S...\n${PINK}HIT CTRL-C AGAIN TO EXIT...${RESET}"
   wait
   sleep 1
@@ -385,7 +412,7 @@ greet
 if [ ! -f $db ]; then
     echo "${YELLOW}$db not found; creating...${RESET}"
     touch $db
-    sqlite3 $db "create table urls(id integer primary key autoincrement, url varchar(512) unique,  response integer, pii integer, md5 varchar(32), sqltime timestamp default current_timestamp not null);"
+    sqlite_execute $db "create table urls(id integer primary key autoincrement, url varchar(512) unique,  response integer, pii integer, md5 varchar(32), sqltime timestamp default current_timestamp not null);"
     echo -e "\n"
 fi
 
