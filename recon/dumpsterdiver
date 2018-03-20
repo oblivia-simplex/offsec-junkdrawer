@@ -153,11 +153,29 @@ function httpcode_echo ()
   code=$1
   color=$DARKGREY
   case "$code" in 
+    1*)
+      colour=$WHITE
+      ;;
     200)
       colour=$CYAN
       ;;
+    2*)
+      colour=$TEAL
+      ;; 
+    3*)
+      colour=$BLUE
+      ;;
     403)
       colour=$PINK
+      ;;
+    404)
+      colour=$DARKGREY # most common, and to be expected
+      ;;
+    5*)
+      colour=$YELLOW
+      ;;
+    *)
+      colour=$GREEN # ???
       ;;
   esac
   echo "${DARKGREY}[${colour}${code}${DARKGREY}]${RESET}"
