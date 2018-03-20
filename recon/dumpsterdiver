@@ -82,7 +82,7 @@ ____/ \__,_|_|  _|  _| .__/ ____/\__|\___|_|    ____/ _|  \_/ \___|_|
 function greet ()
 {
 
-  default_bin=ghostbin
+  default_bin=ghostbin.com
   default_ua="Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)"
   default_db="visited.db"
   [ -n "$domain" ] || bin="$default_bin"
