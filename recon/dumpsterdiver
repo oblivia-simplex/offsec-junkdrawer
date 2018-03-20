@@ -259,6 +259,7 @@ function makeurl(){
             echo "${prefix}/${key}"
             ;;
         pastebin.com)
+          # Uses cloudflare, relatively large address space, not great.
             n=8
             charset=a-z0-9
             prefix="https://pastebin.com/raw"
@@ -279,7 +280,7 @@ function makeurl(){
             prefix="https://paste.ee/p"
             key=$(cat /dev/urandom  | tr -dc $charset | head -c $n)
             suffix="0"
-            echo "${prefix}/${key}"
+            echo "${prefix}/${key}/${suffix}"
             ;;
         p.ip.fi)
             n=4
@@ -289,6 +290,7 @@ function makeurl(){
             echo "${prefix}/${key}"
             ;;
         pasteboard.co)
+          # haven't gotten this one to work yet. screenshot pngs. 
             n=4
             charset=A-Za-z0-9
             prefix="https://pasteboard.co/images/"
