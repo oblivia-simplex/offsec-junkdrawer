@@ -1,9 +1,16 @@
 #!/usr/bin/env bash
 
 script=$0
-bin=$1
-db=$2
-useragent=$3
+
+if [ -n "$VISUAL" ]; then
+  view=$VISUAL
+elif [ -n "$EDITOR" ]; then
+  view=$EDITOR
+elif [ -n "$PAGER" ]; then
+  view=$PAGER
+else
+  view=more
+fi
 
 APPEND_DOMAIN_TO_DATA=0
 
@@ -39,11 +46,13 @@ UP=$'\033[1A'
 DOWN=$'\033[1B'
 
 BANNER=${GREEN}'
- __ \                             |              __ \ _)                 
- |   | |   | __ `__ \  __ \   __| __|  _ \  __|  |   | |\ \   / _ \  __| 
- |   | |   | |   |   | |   |\__ \ |    __/ |     |   | | \ \ /  __/ |    
-____/ \__,_|_|  _|  _| .__/ ____/\__|\___|_|    ____/ _|  \_/ \___|_|    
-                      _|  '${DARKGREEN}'                                               
+██▄     ▄   █▀▄▀█ █ ▄▄    ▄▄▄▄▄      ▄▄▄▄▀ ▄███▄   █▄▄▄▄     ██▄   ▄█     ▄   ▄███▄   █▄▄▄▄ 
+█  █     █  █ █ █ █   █  █     ▀▄ ▀▀▀ █    █▀   ▀  █  ▄▀     █  █  ██      █  █▀   ▀  █  ▄▀ 
+█   █ █   █ █ ▄ █ █▀▀▀ ▄  ▀▀▀▀▄       █    ██▄▄    █▀▀▌      █   █ ██ █     █ ██▄▄    █▀▀▌  
+█  █  █   █ █   █ █     ▀▄▄▄▄▀       █     █▄   ▄▀ █  █      █  █  ▐█  █    █ █▄   ▄▀ █  █  
+███▀  █▄ ▄█    █   █                ▀      ▀███▀     █       ███▀   ▐   █  █  ▀███▀     █   
+       ▀▀▀    ▀     ▀                               ▀                    █▐            ▀    
+                                                                         ▐                  '${DARKGREEN}'                                               
                       __________________
                       \                 \
                         \                 \
@@ -63,27 +72,37 @@ ____/ \__,_|_|  _|  _| .__/ ____/\__|\___|_|    ____/ _|  \_/ \___|_|
 -------------------------------------------------      |_______|
 
 '
+
+BANNER=$(echo "${BANNER}" | tail -n +2)
+
 function greet ()
 {
-
-  default_bin=ghostbin
-  default_ua="Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)"
-  default_db="visited.db"
-  [ -n "$bin" ] || bin="$default_bin"
-  loot=$bin-loot
-  [ -n "$useragent" ] || useragent="$default_ua"
-  [ -d "$loot" ] || mkdir $loot
-  [ -n "$db" ] || db="$default_db"
-
   echo "${DARKGREEN}"
   echo "${BANNER}"
-  echo "${GREEN}Usage: $script [pastebin name] [sqlite3 db] [user agent]"
+  echo "${GREEN}DumpsterDiver"
+  echo "${GREEN}    -h | --help       --> This Help Menu"
+  echo "${GREEN}    -u | --user-agent --> User-Agent Header"
+  echo "${GREEN}    -d | --database   --> SQLite Database File"
+  echo "${GREEN}    -t | --tor        --> Tor Proxy (ip:port)"
+  echo "${GREEN}    -b | --bin        --> Bin Selection"
+  echo "${GREEN}    -s | --synopsis   --> Synopsis (enable:disable)"
+  echo "${GREEN}    -l | --list-bins  --> List Supported Bins"
+  echo "${PINK}Authors: oblivia-simplex, lillypad"
   echo "${DARKGREEN}Using: pastebin:   $bin"
   echo             "       database:   $db"
   echo             "       user-agent: \"$useragent\""
-  echo -e "\n${GREEN}HIT <ENTER> TO CONTINUE...${RESET}"
-  read
-  echo -e "\n"
+  if [ "$tor" = "1" ]; then
+      echo         "       tor: disabled"
+  else
+      echo         "       tor: $tor"
+  fi
+}
+
+function pause ()
+{
+    echo -e "\n${GREEN}HIT <ENTER> TO CONTINUE...${RESET}"
+    read
+    echo -e "\n"
 }
 
 function freemem ()
@@ -212,6 +231,7 @@ function synopsis () {
   cols=$(tput cols)
   rows=$(tput lines)
   showrows=$(( (rows - 10) / 2 ))
+  bytes=$(wc -c $file | awk '{print $1}')
 
   echo $file > $LAST_SYNOPSIS
   clear
@@ -233,29 +253,13 @@ function synopsis () {
     fi
     echo -e "${WHITE}|${CYAN} $url"
     echo -e "${WHITE}|${CYAN} $file${RESET}"
-    echo -e "${WHITE}|${CYAN} SIGINT to view...${RESET}"
+    echo -e "${WHITE}|${CYAN} $bytes bytes: SIGINT to view${RESET}"
     echo -e "${WHITE}\`--- END SYNOPSIS -----${RESET}\n\n\n"
     ) | sed -e "/.\{$cols\}/ s/^\(.\{$(( cols - 20 ))\}\).*\(.\{15\}\)$/\1[...]\2/" \
       | mcat
 }
 
 function pii(){
-<<<<<<< HEAD
-    reg_cc_amex="3[47][0-9]{13}"
-    reg_cc_visa="4[0-9]{12}(?:[0-9]{3})?"
-    reg_cc_mastercard="5[1-5][0-9]{14}"
-    reg_cc_unionpay="62[0-9]{14,17}"
-    reg_cc_instapayment="63[7-9][0-9]{13}"
-    reg_cc_dinersclub="3(?:0[0-5]|[68][0-9])[0-9]{11}"
-    reg_ssn="[0-9]{3}-[0-9]{2}-[0-9]{4}"
-    reg_email="[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,4}"
-    reg_pii="${reg_email}|${reg_cc_amex}|${reg_cc_visa}|${reg_cc_mastercard}|${reg_cc_instapayment}|${reg_cc_unionpay}|${reg_cc_dinersclub}|${reg_ssn}"
-    data_pii=$(mecho $data | grep -Eio $reg_pii)
-    if mecho $data | grep -Eiq $reg_pii
-        then mecho $data_pii
-        else mecho 1
-    fi
-=======
     file=$1
     hits=0
     #reg_cc="(?:4[0-9]{12}(?:[0-9]{3})?|[25][1-7][0-9]{14}|6(?:011|5[0-9][0-9])[0-9]{12}|3[47][0-9]{13}|3(?:0[0-5]|[68][0-9])[0-9]{11}|(?:2131|1800|35\d{3})\d{11})"
@@ -284,7 +288,6 @@ function pii(){
       && hits=$(( hits + 1 ))
     
     echo $hits
->>>>>>> 418d0c9a500bc24624e4cb28628e44609595dce7
 }
 
 function action(){
@@ -298,7 +301,11 @@ function action(){
       fi
     done
     tmp=$(mktemp)
-    response=$(curl -A "${useragent}" --write-out %{http_code} --silent --output $tmp "${url}")
+    if [ "$tor" = "1" ]; then
+        response=$(curl -A "${useragent}" --write-out %{http_code} --silent --output $tmp "${url}")
+    else
+        response=$(curl --socks5-hostname $tor -A "${useragent}" --write-out %{http_code} --silent --output $tmp "${url}")
+    fi
     if (( $APPEND_DOMAIN_TO_DATA )); then
       echo $(domain $url) >> $tmp
     fi
@@ -312,17 +319,17 @@ function action(){
         data_pii=0 #data_pii=$(pii $tmp)
         if ! (( "${data_pii}" )); then
           echo -n "$MAGENTA"
-          sqlite3 $db "insert into urls(url, response, pii, md5) values('${url}', '${response}', 0, '${md5}');"
+          sqlite_execute $db "insert into urls(url, response, pii, md5) values('${url}', '${response}', 0, '${md5}');"
         else
           mecho -e "\n${PINK}[*] found $data_pii potential pii${RED}"
           mcat ${tmp}.pii
           echo -n "${RESET}"
-          sqlite3 $db "insert into urls(url, response, pii, md5) values('${url}', '${response}', 1, '${md5}');"
+          sqlite_execute $db "insert into urls(url, response, pii, md5) values('${url}', '${response}', 1, '${md5}');"
         fi
         mecho -e "\n${CYAN}${url} ---> ${file}${RESET}"
         mv $tmp $file
         #rm ${tmp}.pii
-        synopsis $file $url
+        (( $ENABLE_SYNOPSES )) && synopsis $file $url
       else
           mecho -e "\n${YELLOW}[*] fetched ${url}, but data redundant\n\n\n"
       fi
@@ -352,7 +359,7 @@ function look_closer () {
   trap - INT
   mecho -e "\n${CYAN}Taking a closer look at $S...\n${PINK}HIT CTRL-C AGAIN TO EXIT...${RESET}"
   sleep 2
-  vim $S
+  $view $S
   sleep 1
   trap look_closer INT
 }
@@ -361,8 +368,118 @@ trap look_closer INT
 #######################################
 # Main 
 ######################################
-greet
+[ -n "$bin" ] || bin=ghostbin
+[ -n "$useragent" ] || useragent="Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)"
+[ -n "$db" ] || db="visited.db"
+[ -n "$ENABLE_SYNOPSES" ] || ENABLE_SYNOPSES=1
+[ -n "$tor" ] || tor=1
 
+while test $# -gt 0; do
+    case "$1" in
+        -h|--help)
+            greet
+            exit 0
+            ;;
+        -s|--synopsis)
+            shift
+            if test $# -gt 0; then
+                case "$1" in
+                    enable)
+                        ENABLE_SYNOPSES=1
+                        ;;
+                    disable)
+                        ENABLE_SYNOPSES=0
+                        ;;
+                    *)
+                        ENABLE_SYNOPSES=1
+                        ;;
+                esac
+            else
+                greet
+                echo "${RED}ERROR: Synopsis setting is invalid!"
+            fi
+            ;;
+        -b|--bin)
+            shift
+            if test $# -gt 0; then
+                case "$1" in
+                    termbin)
+                        bin=termbin
+                        ;;
+                    ghostbin)
+                        bin=ghostbin
+                        ;;
+                    pastebin)
+                        bin=pastebin
+                        ;;
+                    pastee)
+                        bin=pasteee
+                        ;;
+                    pipfi)
+                        bin=pipfi
+                        ;;
+                    *)
+                        greet
+                        echo "${RED}ERROR: bin type specified is not supported!"
+                        exit 1
+                        ;;
+                esac
+            else
+                greet
+                echo "${RED}ERROR: no bin specified!"
+                exit 1
+            fi
+            ;;
+        -l|--list-bins)
+            echo "${WHITE}---BEGIN BINS---"
+            echo "${PINK}1. ghostbin"
+            echo "${PINK}2. termbin"
+            echo "${PINK}3. pastebin"
+            echo "${PINK}4. pastee"
+            echo "${PINK}5. pipfi"
+            echo "${WHITE}---END BINS---"
+            exit 0
+            ;;
+        -d|--database)
+            shift
+            if test $# -gt 0; then
+                export db=$1
+            else
+                greet
+                echo "${RED}ERROR: No database was specified!"
+                exit 1
+            fi
+            ;;
+        -u|--user-agent)
+            shift
+            if test $# -gt 0; then
+                useragent=$1
+            else
+                greet
+                echo "${RED}ERROR: No useragent was specified!"
+                exit 1
+            fi
+            ;;
+        -t|--tor)
+            shift
+            if test $# -gt 0; then
+                tor=$1
+            else
+                greet
+                echo "${RED}ERROR: Tor setting was not specified!"
+                exit 1
+            fi
+            ;;
+    esac
+    shift
+done
+
+loot=$bin-loot
+
+greet
+pause
+
+[ -d "$loot" ] || mkdir $loot
 
 if [ ! -f $db ]; then
     echo "${YELLOW}$db not found; creating...${RESET}"
