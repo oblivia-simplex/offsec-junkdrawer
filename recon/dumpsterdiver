@@ -364,12 +364,14 @@ function look_closer () {
   if [ -z "$S" ]; then
     cleanup
   fi
+  trap - INT
   trap cleanup INT
   mecho -e "\n${CYAN}Taking a closer look at $S...\n${PINK}HIT CTRL-C AGAIN TO EXIT...${RESET}"
   wait
   sleep 1
   $view $S
   sleep 1
+  trap - INT
   trap look_closer INT
 }
 trap look_closer INT
