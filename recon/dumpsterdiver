@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 
+joblimit=16
 script=$0
 domain=$1
 db=$2
@@ -22,7 +23,6 @@ fi
 
 APPEND_DOMAIN_TO_DATA=0
 
-joblimit=16
 
 DARKGREEN=$'\e[00;32m'
 GREEN=$'\e[01;32m'
@@ -52,7 +52,9 @@ fi
 
 UP=$'\033[1A'
 DOWN=$'\033[1B'
+BOTTOM=$'\033[256B'
 SAVE=$'\033[s'
+DELEOL=$'\033[0J'
 RESTORE=$'\033[u'
 BANNER=${GREEN}'
  __ \                             |              __ \ _)                 
@@ -100,6 +102,30 @@ function greet ()
   echo -e "\n${GREEN}HIT <ENTER> TO CONTINUE...${RESET}"
   read
   echo -e "\n"
+}
+
+
+function bottom_scr ()
+{
+  echo -en
+}
+
+function fadebar ()
+{
+  i=0
+  num=$1
+  if (( $num < 0 )); then
+    num=$(( $num * -1 ))
+    pipe=tac
+  else
+    pipe=cat
+  fi
+  for colour in ${DARKGREY} ${LIGHTGREY} ${TEAL} ${CYAN} ${WHITE}; do
+    for i in `seq 1 $num`; do
+      echo -e "${colour}=${colour}"
+    done
+  done | $pipe | tr -d '\n'
+  echo -en "${RESET}"
 }
 
 function freemem ()
@@ -240,11 +266,6 @@ function makeurl(){
     esac
 }
 
-function domain () {
-  url=$1
-  echo $url | cut -d "/" -f 3
-}
-
 function synopsis () {
   file="$1"
   url="$2"
@@ -276,7 +297,7 @@ function synopsis () {
     echo -e "${WHITE}|${CYAN} $bytes bytes: SIGINT to view${RESET}"
     echo -e "${WHITE}\`--- END SYNOPSIS -----${RESET}\n\n\n"
     ) | sed -e "/.\{$cols\}/ s/^\(.\{$(( cols - 20 ))\}\).*\(.\{15\}\)$/\1[...]\2/" \
-      | mcat
+      | cat
 }
 
 function pii(){
@@ -317,7 +338,8 @@ function hitrate () {
 }
 
 function hitrate_echo () {
-  echo "${DARKGREY}[hit $(printf "%2.3f%%" $(( 100 * $(hitrate) )))]${RESET}"
+  hr=$(hitrate)
+  echo "${DARKGREY}[hit $(printf "%2.3f%%" $(bc <<< "100 * $hr"))]${RESET}"
 }
 
 function action(){
@@ -325,47 +347,49 @@ function action(){
       url=$(makeurl)
       db_url=$(sqlite_execute $db "SELECT url FROM urls WHERE url = '${url}'")
       if [ "${url}" = "${db_url}" ]; then
-          mecho -e "\n${YELLOW}--- Already visited ${url} ---"
+          fademsg "[already vistited $url]"
       else
           break
       fi
     done
     tmp=$(mktemp)
-    response=$(curl -A "${useragent}" --write-out %{http_code} --silent --output $tmp "${url}")
-    if (( $APPEND_DOMAIN_TO_DATA )); then
-      echo $(domain $url) >> $tmp
-    fi
-    mecho -en "${UP}${UP}\r${RESET}$(timestamp_echo)$(freemem_echo)$(lootcount_echo)$(httpcode_echo $response)$(hitrate_echo)\n=====${WHITE} $url ${RESET}=====\n"
+    response=$(curl -A "${useragent}"  \
+               --write-out %{http_code} \
+               --silent \
+               --output $tmp "${url}")
+    mutex_acquire
+    echo -e "${BOTTOM}${UP}${UP}\r${RESET}$(timestamp_echo)$(freemem_echo)$(lootcount_echo)$(httpcode_echo $response)$(hitrate_echo)\n$(fadebar 2) ${WHITE} $url $(fadebar -2)"
     if [ "$response" = "200" ]; then
-      mutex_acquire
-      echo -e "${DOWN}\n"
       md5=$(md5sum $tmp | cut -d ' ' -f 1)
       file=${loot}/${md5}
+      # Check to see if the file is new to us
       if ! [ -f "$file" ]; then
         data_pii=0 #data_pii=$(pii $tmp)
-        if ! (( "${data_pii}" )); then
-          echo -n "$MAGENTA"
-          sqlite_execute $db "INSERT INTO urls(url, response, pii, md5) VALUES('${url}', '${response}', 0, '${md5}');"
-        else
-          echo -e "\n${PINK}[*] found $data_pii potential pii${RED}"
-          cat ${tmp}.pii
-          echo -n "${RESET}"
-          sqlite_execute $db "INSERT INTO urls(url, response, pii, md5) VALUES('${url}', '${response}', 1, '${md5}');"
-        fi
-        echo -e "\n${CYAN}${url} ---> ${file}${RESET}"
+        sqlite_execute $db "INSERT INTO urls(url, response, pii, md5) 
+                            VALUES('${url}', 
+                                   '${response}', 
+                                   ${data_pii}, 
+                                   '${md5}');"
         mv $tmp $file
         #rm ${tmp}.pii
         (( $ENABLE_SYNOPSES )) && synopsis $file $url
       else
-          echo -en "${SAVE}${UP}${UP}${YELLOW}[*] fetched ${url}, but data redundant${RESET}${RESTORE}\r"
+        fademsg "[data $md5 from $url is redundant]" &
       fi
-      mutex_release
-    else
-      mutex_acquire
+    else # if response is not 200
       sqlite_execute $db "INSERT INTO urls(url, response, pii) VALUES('${url}', '${response}', 0);"
       rm -f $tmp
-      mutex_release
     fi
+    mutex_release
+}
+
+function fademsg () {
+  msg="$*"
+  start=$(echo -en "\r${SAVE}")
+  for colour in ${WHITE} ${CYAN} ${TEAL} ${LIGHTGREY} ${DARKGREY}; do
+    echo -en "${RESTORE}${colour}${msg}${RESET}${DELEOL}${RESTORE}"
+    sleep 0.05
+  done
 }
 
 function throttle(){
