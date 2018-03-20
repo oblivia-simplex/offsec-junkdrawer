@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 
 script=$0
+version="0.9b"
 
 if [ -n "$VISUAL" ]; then
   view=$VISUAL
@@ -13,8 +14,6 @@ else
 fi
 
 APPEND_DOMAIN_TO_DATA=0
-
-joblimit=16
 
 DARKGREEN=$'\e[00;32m'
 GREEN=$'\e[01;32m'
@@ -79,7 +78,7 @@ function greet ()
 {
   echo "${DARKGREEN}"
   echo "${BANNER}"
-  echo "${GREEN}DumpsterDiver"
+  echo "${GREEN}DumpsterDiver $version"
   echo "${GREEN}    -h | --help       --> This Help Menu"
   echo "${GREEN}    -u | --user-agent --> User-Agent Header"
   echo "${GREEN}    -d | --database   --> SQLite Database File"
@@ -87,6 +86,8 @@ function greet ()
   echo "${GREEN}    -b | --bin        --> Bin Selection"
   echo "${GREEN}    -s | --synopsis   --> Synopsis (enable:disable)"
   echo "${GREEN}    -l | --list-bins  --> List Supported Bins"
+  echo "${GREEN}    -j | --job-limit  --> Job Limit (default=1)"
+  echo "${GREEN}    -v | --version    --> Version"
   echo "${PINK}Authors: oblivia-simplex, lillypad"
   echo "${DARKGREEN}Using: pastebin:   $bin"
   echo             "       database:   $db"
@@ -96,6 +97,7 @@ function greet ()
   else
       echo         "       tor: $tor"
   fi
+  echo             "       joblimit: $joblimit"
 }
 
 function pause ()
@@ -167,15 +169,15 @@ function mcat ()
 
 function sqlite_execute(){
     while :; do
-        result=$(sqlite3 $1 "${2}" 2>&1) #| tee /dev/stderr)
+        result=$(sqlite3 $1 "${2}" 2>&1)
         if [ "${result}" = "Error: database is locked" ]; then
             sleep 0.01
             continue
         else
+            echo "${result}"
             break
         fi
     done
-    #mecho "${result}"
 }
 
 function makeurl(){
@@ -365,14 +367,15 @@ function look_closer () {
 }
 trap look_closer INT
 
-#######################################
-# Main 
-######################################
-[ -n "$bin" ] || bin=ghostbin
-[ -n "$useragent" ] || useragent="Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)"
-[ -n "$db" ] || db="visited.db"
-[ -n "$ENABLE_SYNOPSES" ] || ENABLE_SYNOPSES=1
-[ -n "$tor" ] || tor=1
+####################################
+#               MAIN               #   
+####################################
+bin=ghostbin
+useragent="Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)"
+db="visited.db"
+ENABLE_SYNOPSES=1
+tor=1
+joblimit=1
 
 while test $# -gt 0; do
     case "$1" in
@@ -469,6 +472,20 @@ while test $# -gt 0; do
                 echo "${RED}ERROR: Tor setting was not specified!"
                 exit 1
             fi
+            ;;
+        -j|--job-limit)
+            shift
+            if test $# -gt 0; then
+                joblimit=$1
+            else
+                greet
+                echo "${RED}ERROR: Job LImit was not specified!"
+                exit 1
+            fi
+            ;;
+        -v|--version)
+            echo $version
+            exit 0
             ;;
     esac
     shift
