@@ -317,7 +317,7 @@ function hitrate () {
 }
 
 function hitrate_echo () {
-  echo "${DARKGREY}[hit $(printf "%1.4f" $(hitrate))]${RESET}"
+  echo "${DARKGREY}[hit $(printf "%2.3f%%" $(( 100 * $(hitrate) )))]${RESET}"
 }
 
 function action(){
