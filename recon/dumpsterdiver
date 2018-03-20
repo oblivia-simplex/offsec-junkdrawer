@@ -52,7 +52,13 @@ fi
 
 UP=$'\033[1A'
 DOWN=$'\033[1B'
-BOTTOM=$'\033[256B'
+
+function bottom () {
+  L=$(tput lines)
+  b='\033['$(( L - 1 ))'H'
+  echo -en "$b"
+}
+
 SAVE=$'\033[s'
 DELEOL=$'\033[0J'
 RESTORE=$'\033[u'
@@ -376,7 +382,8 @@ function action(){
                --silent \
                --output $tmp "${url}")
     mutex_acquire
-    echo -e "${BOTTOM}${UP}${UP}${UP}\r${RESET}$(timestamp_echo)$(freemem_echo)$(lootcount_echo)$(httpcode_echo $response)$(hitrate_echo)\n$(fadebar 2)${WHITE}  $url  $(fadebar -2)"
+    echo -e "$(bottom)${UP}${UP}${UP}\r${RESET}$(timestamp_echo)$(freemem_echo)$(lootcount_echo)$(httpcode_echo $response)$(hitrate_echo)\n$(fadebar 2)${WHITE}  $url  $(fadebar -2)"
+    echo -en "$DELEOL"
     if [ "$response" = "200" ]; then
       md5=$(md5sum $tmp | cut -d ' ' -f 1)
       file=${loot}/${md5}
@@ -403,9 +410,8 @@ function action(){
 
 function fademsg () {
   msg="$*"
-  start=$(echo -en "\r${SAVE}")
   for colour in ${WHITE} ${CYAN} ${TEAL} ${LIGHTGREY} ${DARKGREY}; do
-    echo -en "${RESTORE}${colour}${msg}${RESET}${DELEOL}${RESTORE}"
+    echo -en "$(bottom)\r${colour}${msg}${RESET}${DELEOL}"
     sleep 0.05
   done
 }
