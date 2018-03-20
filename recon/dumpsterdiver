@@ -6,6 +6,8 @@ domain=$1
 db=$2
 useragent=$3
 
+CONSOLEPORN=1
+
 ENABLE_SYNOPSES=1
 if [ "$domain" = pasteboard ]; then
   ENABLE_SYNOPSES=0
@@ -23,23 +25,39 @@ fi
 
 APPEND_DOMAIN_TO_DATA=0
 
+if (( $CONSOLEPORN )); then
+  DARKGREEN=$'\e[00;32m'
+  GREEN=$'\e[01;32m'
+  TEAL=$'\e[00;36m'
+  DARKGREY=$'\e[01;30m'
+  CYAN=$'\e[01;36m'
+  LIGHTGREY=$'\e[00;37m'
+  RED=$'\e[00;31m'
+  PINK=$'\e[01;31m'
+  BLACK=$'\e[00;30m'
+  BLUE=$'\e[01;34m'
+  DARKBLUE=$'\e[00;34m'
+  WHITE=$'\e[01;37m'
+  RESET=$'\e[0m'
+  YELLOW=$'\e[01;33m'
+  MAGENTA=$'\e[01;35m'
+  PURPLE=$'\e[00;35m'
 
-DARKGREEN=$'\e[00;32m'
-GREEN=$'\e[01;32m'
-TEAL=$'\e[00;36m'
-DARKGREY=$'\e[01;30m'
-CYAN=$'\e[01;36m'
-LIGHTGREY=$'\e[00;37m'
-RED=$'\e[00;31m'
-PINK=$'\e[01;31m'
-BLACK=$'\e[00;30m'
-BLUE=$'\e[01;34m'
-DARKBLUE=$'\e[00;34m'
-WHITE=$'\e[01;37m'
-RESET=$'\e[0m'
-YELLOW=$'\e[01;33m'
-MAGENTA=$'\e[01;35m'
-PURPLE=$'\e[00;35m'
+  UP=$'\033[1A'
+  DOWN=$'\033[1B'
+
+
+  SAVE=$'\033[s'
+  DELEOL=$'\033[0J'
+  RESTORE=$'\033[u'
+fi
+
+function bottom () {
+  (( $CONSOLEPORN )) || return
+  L=$(tput lines)
+  b='\033['$(( L - 1 ))'H'
+  echo -en "$b"
+}
 
 MUTEX=0
 LAST_SYNOPSIS=$(mktemp)
@@ -50,18 +68,6 @@ else
   DOS2UNIXPIPE=cat
 fi
 
-UP=$'\033[1A'
-DOWN=$'\033[1B'
-
-function bottom () {
-  L=$(tput lines)
-  b='\033['$(( L - 1 ))'H'
-  echo -en "$b"
-}
-
-SAVE=$'\033[s'
-DELEOL=$'\033[0J'
-RESTORE=$'\033[u'
 BANNER=${GREEN}'
  __ \                             |              __ \ _)                 
  |   | |   | __ `__ \  __ \   __| __|  _ \  __|  |   | |\ \   / _ \  __| 
@@ -118,6 +124,10 @@ function bottom_scr ()
 
 function fadebar ()
 {
+  if ! (( $CONSOLEPORN )); then
+    echo -n "=====" 
+    return
+  fi
   i=0
   num=$1
   if (( $num < 0 )); then
@@ -410,6 +420,10 @@ function action(){
 
 function fademsg () {
   msg="$*"
+  if ! (( $CONSOLEPORN )); then
+    echo -n "$msg"
+    return
+  fi
   for colour in ${WHITE} ${CYAN} ${TEAL} ${LIGHTGREY} ${DARKGREY}; do
     echo -en "$(bottom)\r${colour}${msg}${RESET}${DELEOL}"
     sleep 0.05
