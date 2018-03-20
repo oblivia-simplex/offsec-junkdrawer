@@ -426,6 +426,7 @@ function throttle(){
 }
 
 function cleanup () {
+  tput cnorm; stty echo
   joblist=($(jobs -p))
   jn=${#joblist[*]} 
   echo "${YELLOW}Waiting for $jn jobs to finish...${RESET}"
@@ -435,6 +436,7 @@ function cleanup () {
 }
 
 function look_closer () {
+  tput cnorm; stty echo
   S=$(cat $LAST_SYNOPSIS)
   if [ -z "$S" ]; then
     cleanup
@@ -448,6 +450,7 @@ function look_closer () {
   sleep 1
   trap - INT
   trap look_closer INT
+  tput civis; stty -echo
 }
 trap look_closer INT
 
@@ -463,7 +466,7 @@ if [ ! -f $db ]; then
     sqlite_execute $db "create table urls(id integer primary key autoincrement, url varchar(512) unique,  response integer, pii integer, md5 varchar(32), sqltime timestamp default current_timestamp not null);"
     echo -e "\n"
 fi
-
+tput civis; stty -echo
 if [ "${joblimit}" = "1" ]; then
     while :; do
         action
@@ -474,3 +477,4 @@ else
         throttle $joblimit
     done
 fi
+tput cnorm; stty echo
