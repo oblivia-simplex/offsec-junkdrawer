@@ -3,15 +3,7 @@
 script=$0
 version="0.9b"
 
-if [ -n "$VISUAL" ]; then
-  view=$VISUAL
-elif [ -n "$EDITOR" ]; then
-  view=$EDITOR
-elif [ -n "$PAGER" ]; then
-  view=$PAGER
-else
-  view=more
-fi
+
 
 APPEND_DOMAIN_TO_DATA=0
 
@@ -219,6 +211,15 @@ function makeurl(){
             key=$(cat /dev/urandom | tr -dc $charset | head -c $n)
             echo "${prefix}/${key}"
             ;;
+        pasteboard)
+            n=4
+            charset=A-Za-z0-9
+            prefix="https://pasteboard.co/images/"
+            prekey=HcF # is this invariant?
+            key=$(cat /dev/urandom | tr -dc $charset | head -c $n)
+            suffix=/download
+            echo "${prefix}/${prekey}${key}/${suffix}"
+            ;;
     esac
 }
 
@@ -377,6 +378,18 @@ ENABLE_SYNOPSES=1
 tor=1
 joblimit=1
 
+
+
+if [ -n "$VISUAL" ]; then
+  view=$VISUAL
+elif [ -n "$EDITOR" ]; then
+  view=$EDITOR
+elif [ -n "$PAGER" ]; then
+  view=$PAGER
+else
+  view=more
+fi
+
 while test $# -gt 0; do
     case "$1" in
         -h|--help)
@@ -394,12 +407,14 @@ while test $# -gt 0; do
                         ENABLE_SYNOPSES=0
                         ;;
                     *)
-                        ENABLE_SYNOPSES=1
+                        echo "${RED}ERROR: Synopsis value is invalid!"
+                        exit 1
                         ;;
                 esac
             else
                 greet
-                echo "${RED}ERROR: Synopsis setting is invalid!"
+                echo "${RED}ERROR: Synopsis is not specified!"
+                exit 1
             fi
             ;;
         -b|--bin)
@@ -421,6 +436,9 @@ while test $# -gt 0; do
                     pipfi)
                         bin=pipfi
                         ;;
+                    pasteboard)
+                        bin=pasteboard
+                        ;;
                     *)
                         greet
                         echo "${RED}ERROR: bin type specified is not supported!"
@@ -440,6 +458,7 @@ while test $# -gt 0; do
             echo "${PINK}3. pastebin"
             echo "${PINK}4. pastee"
             echo "${PINK}5. pipfi"
+            echo "${PINK}6. pasteboard"
             echo "${WHITE}---END BINS---"
             exit 0
             ;;
@@ -491,6 +510,10 @@ while test $# -gt 0; do
     shift
 done
 
+if [ "$bin" = pasteboard ]; then
+  ENABLE_SYNOPSES=0
+fi
+
 loot=$bin-loot
 
 greet
@@ -501,7 +524,7 @@ pause
 if [ ! -f $db ]; then
     echo "${YELLOW}$db not found; creating...${RESET}"
     touch $db
-    sqlite3 $db "create table urls(id integer primary key autoincrement, url varchar(512) unique,  response integer, pii integer, md5 varchar(32), sqltime timestamp default current_timestamp not null);"
+    sqlite_execute $db "create table urls(id integer primary key autoincrement, url varchar(512) unique,  response integer, pii integer, md5 varchar(32), sqltime timestamp default current_timestamp not null);"
     echo -e "\n"
 fi
 
