@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-joblimit=16
+joblimit=64
 script=$0
 domain=$1
 db=$2
@@ -68,29 +68,31 @@ else
   DOS2UNIXPIPE=cat
 fi
 
+y=$YELLOW; g=$DARKGREEN
 BANNER=${GREEN}'
  __ \                             |              __ \ _)                 
  |   | |   | __ `__ \  __ \   __| __|  _ \  __|  |   | |\ \   / _ \  __| 
  |   | |   | |   |   | |   |\__ \ |    __/ |     |   | | \ \ /  __/ |    
 ____/ \__,_|_|  _|  _| .__/ ____/\__|\___|_|    ____/ _|  \_/ \___|_|    
                       _|  '${DARKGREEN}'                                               
-                      __________________
-                      \                 \
-                        \                 \
-                          \                 \
-                            \                 \
-           /-------------------------------------
-         //---------------//                  / |
-       //               //                  / __|
-     //               //                  / /  ||
-   //               //                  / /    ||
- //_______________//   '${YELLOW}'o o'${DARKGREEN}'            / /      ||      ___/-\___
-------------------------------------/   ------- |     |---------|
-| '${GREEN}'BRUTE FORCE '${DARKGREEN}'|        | '${GREEN}'FIND WEIRD'${DARKGREEN}' |           |      | | | | |
-|  '${GREEN}'PASTEBINS'${DARKGREEN}'  |        |    '${GREEN}'SHIT'${DARKGREEN}'    |           |      | | | | |
-|--------------        -------------|           |      | | | | |
-|                                   |           |      | | | | |
--------------------------------------------------      |_______|
+                      ___________________
+                      \\                 \
+                       \\                 \
+                        \\                 \
+                         \\                 \
+      ./---------------------------------------,
+     //----------------//                 //   |
+    //                //      ,,,I       //___ |
+   //                //      ;___I      //    ||
+  //                //       ('${y}o${g}'_'${y}o${g}'I     //     ||
+ //                //,___,---,\=+J,---//      ||
+||                ||``"""=---.____.--//       ||      ___/-\___
+------------------------------------/ --------+|     |---------|
+| '${GREEN}'BRUTE FORCE '${DARKGREEN}'|       | '${GREEN}'FIND WEIRD'${DARKGREEN}' |           |      | | | | |
+|  '${GREEN}'PASTEBINS'${DARKGREEN}'  |       |    '${GREEN}'SHIT'${DARKGREEN}'    |           |      | | | | |
+|--------------       -------------|           |      | | | | |
+|                                  |           |      | | | | |
+------------------------------------------------      |_______|
 
 '
 function greet ()
@@ -275,6 +277,7 @@ function makeurl(){
             echo "${prefix}/${key}/${suffix}"
             ;;
         paste.ee)
+          # will 403 all tor connections
             n=5
             charset=a-z0-9
             prefix="https://paste.ee/d"
@@ -475,6 +478,7 @@ trap look_closer INT
 ######################################
 greet
 
+counter=0
 
 if [ ! -f $db ]; then
     echo "${YELLOW}$db not found; creating...${RESET}"
@@ -490,6 +494,7 @@ if [ "${joblimit}" = "1" ]; then
 else
     while :; do
         action &
+        counter=$(( counter + 1 ))
         throttle $joblimit
     done
 fi
