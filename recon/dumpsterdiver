@@ -98,10 +98,10 @@ ____/ \__,_|_|  _|  _| .__/ ____/\__|\___|_|    ____/ _|  \_/ \___|_|
 function greet ()
 {
 
-  default_bin=ghostbin.com
+  default_domain=ghostbin.com
   default_ua="Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)"
   default_db="visited.db"
-  [ -n "$domain" ] || bin="$default_bin"
+  [ -n "$domain" ] || domain="$default_domain"
   loot=$domain-loot
   [ -n "$useragent" ] || useragent="$default_ua"
   [ -d "$loot" ] || mkdir $loot
