@@ -617,7 +617,7 @@ while test $# -gt 0; do
             shift
             if test $# -gt 0; then
                 tor=$1
-                torargs="--socks-hostname $tor"
+                torargs="--socks5-hostname $tor"
             else
                 greet
                 echo "${RED}ERROR: Tor setting was not specified!"
