@@ -1,10 +1,7 @@
 #!/usr/bin/env bash
 
-joblimit=64
 script=$0
-domain=$1
-db=$2
-useragent=$3
+torargs=""
 
 CONSOLEPORN=1
 
@@ -23,7 +20,6 @@ else
   view=more
 fi
 
-APPEND_DOMAIN_TO_DATA=0
 
 if (( $CONSOLEPORN )); then
   DARKGREEN=$'\e[00;32m'
@@ -58,6 +54,11 @@ function bottom () {
   b='\033['$(( L - 1 ))'H'
   echo -en "$b"
 }
+version="0.9b"
+
+
+
+APPEND_DOMAIN_TO_DATA=0
 
 MUTEX=0
 LAST_SYNOPSIS=$(mktemp)
@@ -93,29 +94,55 @@ ____/ \__,_|_|  _|  _| .__/ ____/\__|\___|_|    ____/ _|  \_/ \___|_|
 |--------------       -------------|           |      | | | | |
 |                                  |           |      | | | | |
 ------------------------------------------------      |_______|
-
 '
+## Alt font:
+#██▄     ▄   █▀▄▀█ █ ▄▄    ▄▄▄▄▄      ▄▄▄▄▀ ▄███▄   █▄▄▄▄     ██▄   ▄█     ▄   ▄███▄   █▄▄▄▄ 
+#█  █     █  █ █ █ █   █  █     ▀▄ ▀▀▀ █    █▀   ▀  █  ▄▀     █  █  ██      █  █▀   ▀  █  ▄▀ 
+#█   █ █   █ █ ▄ █ █▀▀▀ ▄  ▀▀▀▀▄       █    ██▄▄    █▀▀▌      █   █ ██ █     █ ██▄▄    █▀▀▌  
+#█  █  █   █ █   █ █     ▀▄▄▄▄▀       █     █▄   ▄▀ █  █      █  █  ▐█  █    █ █▄   ▄▀ █  █  
+#███▀  █▄ ▄█    █   █                ▀      ▀███▀     █       ███▀   ▐   █  █  ▀███▀     █   
+#       ▀▀▀    ▀     ▀                               ▀                    █▐            ▀    
+
+# default_domain=ghostbin.com
+#  default_ua="Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)"
+#  default_db="visited.db"
+#  [ -n "$domain" ] || domain="$default_domain"
+#  loot=$domain-loot
+#  [ -n "$useragent" ] || useragent="$default_ua"
+#  [ -d "$loot" ] || mkdir $loot
+#  [ -n "$db" ] || db="$default_db"
+
 function greet ()
 {
-
-  default_domain=ghostbin.com
-  default_ua="Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)"
-  default_db="visited.db"
-  [ -n "$domain" ] || domain="$default_domain"
-  loot=$domain-loot
-  [ -n "$useragent" ] || useragent="$default_ua"
-  [ -d "$loot" ] || mkdir $loot
-  [ -n "$db" ] || db="$default_db"
-
   echo "${DARKGREEN}"
   echo "${BANNER}"
-  echo "${GREEN}Usage: $script [pastebin name] [sqlite3 db] [user agent]"
-  echo "${DARKGREEN}Using: domain:     $domain"
+  echo "${GREEN}DumpsterDiver $version"
+  echo "${DARKGREEN}Authors: oblivia-simplex, lillypad"
+  echo "${GREEN}    -h | --help       --> This Help Menu"
+  echo "${GREEN}    -u | --user-agent --> User-Agent Header"
+  echo "${GREEN}    -d | --database   --> SQLite Database File"
+  echo "${GREEN}    -t | --tor        --> Tor Proxy (ip:port)"
+  echo "${GREEN}    -b | --bin        --> Bin Selection"
+  echo "${GREEN}    -s | --synopsis   --> Synopsis (enable:disable)"
+  echo "${GREEN}    -l | --list-bins  --> List Supported Bins"
+  echo "${GREEN}    -j | --job-limit  --> Job Limit (default=1)"
+  echo "${GREEN}    -v | --version    --> Version"
+  echo "${DARKGREEN}Using: pastebin:   $bin"
   echo             "       database:   $db"
   echo             "       user-agent: \"$useragent\""
-  echo -e "\n${GREEN}HIT <ENTER> TO CONTINUE...${RESET}"
-  read
-  echo -e "\n"
+  if [ "$tor" = "1" ]; then
+      echo         "       tor: disabled"
+  else
+      echo         "       tor: $tor"
+  fi
+  echo             "       joblimit: $joblimit"
+}
+
+function pause ()
+{
+    echo -e "\n${GREEN}HIT <ENTER> TO CONTINUE...${RESET}"
+    read
+    echo -e "\n"
 }
 
 
@@ -240,15 +267,15 @@ function mcat ()
 
 function sqlite_execute(){
     while :; do
-        result=$(sqlite3 $1 "${2}" 2>&1) #| tee /dev/stderr)
+        result=$(sqlite3 $1 "${2}" 2>&1)
         if [ "${result}" = "Error: database is locked" ]; then
             sleep 0.01
             continue
         else
+            echo "${result}"
             break
         fi
     done
-    echo -n "${result}"
 }
 
 function makeurl(){
@@ -392,10 +419,11 @@ function action(){
       fi
     done
     tmp=$(mktemp)
-    response=$(curl -A "${useragent}"  \
-               --write-out %{http_code} \
-               --silent \
-               --output $tmp "${url}")
+    response=$(curl $torargs \
+                    -A "${useragent}" \
+                    --write-out %{http_code} \
+                    --silent \
+                    --output $tmp "${url}")
     mutex_acquire
     echo -e "$(bottom)${UP}${UP}${UP}\r${RESET}$(timestamp_echo)$(freemem_echo)$(lootcount_echo)$(httpcode_echo $response)$(hitrate_echo)\n$(fadebar 2)${WHITE}  $url  $(fadebar -2)"
     echo -en "$DELEOL"
@@ -464,7 +492,7 @@ function look_closer () {
 #  trap cleanup INT
   mecho -e "\n${CYAN}Taking a closer look at $S...\n${PINK}HIT CTRL-C AGAIN TO EXIT...${RESET}"
   wait
-  sleep 1
+  sleep 2
   $view $S
   sleep 1
   trap - INT
@@ -473,12 +501,161 @@ function look_closer () {
 }
 trap look_closer INT
 
-#######################################
-# Main 
-######################################
+####################################
+#               MAIN               #   
+####################################
+bin=ghostbin
+useragent="Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)"
+db="visited.db"
+ENABLE_SYNOPSES=1
+tor=1
+joblimit=8
+domain=ghostbin.com
+
+
+
+if [ -n "$VISUAL" ]; then
+  view=$VISUAL
+elif [ -n "$EDITOR" ]; then
+  view=$EDITOR
+elif [ -n "$PAGER" ]; then
+  view=$PAGER
+else
+  view=more
+fi
+
+while test $# -gt 0; do
+    case "$1" in
+        -h|--help)
+            greet
+            exit 0
+            ;;
+        -s|--synopsis)
+            shift
+            if test $# -gt 0; then
+                case "$1" in
+                    enable)
+                        ENABLE_SYNOPSES=1
+                        ;;
+                    disable)
+                        ENABLE_SYNOPSES=0
+                        ;;
+                    *)
+                        echo "${RED}ERROR: Synopsis value is invalid!"
+                        exit 1
+                        ;;
+                esac
+            else
+                greet
+                echo "${RED}ERROR: Synopsis is not specified!"
+                exit 1
+            fi
+            ;;
+        -b|--bin)
+            shift
+            if test $# -gt 0; then
+                case "$1" in
+                    termbin)
+                        bin=termbin
+                        ;;
+                    ghostbin)
+                        bin=ghostbin
+                        ;;
+                    pastebin)
+                        bin=pastebin
+                        ;;
+                    pastee)
+                        bin=pasteee
+                        ;;
+                    pipfi)
+                        bin=pipfi
+                        ;;
+                    pasteboard)
+                        bin=pasteboard
+                        ;;
+                    *)
+                        greet
+                        echo "${RED}ERROR: bin type specified is not supported!"
+                        exit 1
+                        ;;
+                esac
+            else
+                greet
+                echo "${RED}ERROR: no bin specified!"
+                exit 1
+            fi
+            ;;
+        -l|--list-bins)
+            echo "${WHITE}---BEGIN BINS---"
+            echo "${PINK}1. ghostbin"
+            echo "${PINK}2. termbin"
+            echo "${PINK}3. pastebin"
+            echo "${PINK}4. pastee"
+            echo "${PINK}5. pipfi"
+            echo "${PINK}6. pasteboard"
+            echo "${WHITE}---END BINS---"
+            exit 0
+            ;;
+        -d|--database)
+            shift
+            if test $# -gt 0; then
+                export db=$1
+            else
+                greet
+                echo "${RED}ERROR: No database was specified!"
+                exit 1
+            fi
+            ;;
+        -u|--user-agent)
+            shift
+            if test $# -gt 0; then
+                useragent=$1
+            else
+                greet
+                echo "${RED}ERROR: No useragent was specified!"
+                exit 1
+            fi
+            ;;
+        -t|--tor)
+            shift
+            if test $# -gt 0; then
+                tor=$1
+                torargs="--socks-hostname $tor"
+            else
+                greet
+                echo "${RED}ERROR: Tor setting was not specified!"
+                exit 1
+            fi
+            ;;
+        -j|--job-limit)
+            shift
+            if test $# -gt 0; then
+                joblimit=$1
+            else
+                greet
+                echo "${RED}ERROR: Job Limit was not specified!"
+                exit 1
+            fi
+            ;;
+        -v|--version)
+            echo $version
+            exit 0
+            ;;
+    esac
+    shift
+done
+
+if [ "$bin" = pasteboard ]; then
+  ENABLE_SYNOPSES=0
+fi
+
+loot=$bin-loot
+
 greet
+pause
 
 counter=0
+[ -d "$loot" ] || mkdir -p $loot
 
 if [ ! -f $db ]; then
     echo "${YELLOW}$db not found; creating...${RESET}"
