@@ -128,7 +128,7 @@ function greet ()
   echo "${GREEN}    -l | --list-bins  --> List Supported Bins"
   echo "${GREEN}    -j | --job-limit  --> Job Limit (default=1)"
   echo "${GREEN}    -v | --version    --> Version"
-  echo "${DARKGREEN}Using: pastebin:   $bin"
+  echo "${DARKGREEN}Using: pastebin:   $domain"
   echo             "       database:   $db"
   echo             "       user-agent: \"$useragent\""
   if [ "$tor" = "1" ]; then
@@ -501,7 +501,6 @@ trap look_closer INT
 ####################################
 #               MAIN               #   
 ####################################
-bin=ghostbin
 useragent="Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)"
 db="visited.db"
 ENABLE_SYNOPSES=1
@@ -552,23 +551,23 @@ while test $# -gt 0; do
             shift
             if test $# -gt 0; then
                 case "$1" in
-                    termbin)
-                        bin=termbin
+                    termbin*)
+                        domain=termbin.com
                         ;;
-                    ghostbin)
-                        bin=ghostbin
+                    ghostbin*)
+                        domain=ghostbin.com
                         ;;
-                    pastebin)
-                        bin=pastebin
+                    pastebin*)
+                        domain=pastebin.com
                         ;;
-                    pastee)
-                        bin=pasteee
+                    paste.ee)
+                        domain=paste.ee
                         ;;
-                    pipfi)
-                        bin=pipfi
+                    p.ip.fi)
+                        domain=p.ip.fi
                         ;;
-                    pasteboard)
-                        bin=pasteboard
+                    pasteboard*)
+                        domain=pasteboard.co
                         ;;
                     *)
                         greet
@@ -584,12 +583,12 @@ while test $# -gt 0; do
             ;;
         -l|--list-bins)
             echo "${WHITE}---BEGIN BINS---"
-            echo "${PINK}1. ghostbin"
-            echo "${PINK}2. termbin"
-            echo "${PINK}3. pastebin"
-            echo "${PINK}4. pastee"
-            echo "${PINK}5. pipfi"
-            echo "${PINK}6. pasteboard"
+            echo "${PINK}1. ghostbin.com [well supported: ~0.7% hitrate"
+            echo "${PINK}2. termbin.com [well supported: ~4% hitrate]"
+            echo "${PINK}3. pastebin.com [large key space, & cloudflare hates you]"
+            echo "${PINK}4. paste.ee [meh]"
+            echo "${PINK}5. p.ip.fi [well supported]"
+            echo "${PINK}6. pasteboard.co [almost]"
             echo "${WHITE}---END BINS---"
             exit 0
             ;;
@@ -642,11 +641,11 @@ while test $# -gt 0; do
     shift
 done
 
-if [ "$bin" = pasteboard ]; then
+if [ "$domain" = pasteboard ]; then
   ENABLE_SYNOPSES=0
 fi
 
-loot=$bin-loot
+loot=$domain-loot
 
 greet
 pause
