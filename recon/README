@@ -25,9 +25,9 @@ ____/ \__,_|_|  _|  _| .__/ ____/\__|\___|_|    ____/ _|  \_/ \___|_|
 ------------------------------------------------      |_______|
 
 
-Usage: ./dupsterdiver pastebin nae] sqlite db] user agent]
-Using: doain:     ghostbin.co
+Usage: ./dumpsterdiver [pastebin domain] [sqlite db] [user agent]
+Using: domain:     ghostbin.co
        database:   visited.db
-       user-agent: "Mozilla/5. (copatible Googlebot/. +http://www.google.co/bot.htl)"
+       user-agent: "Mozilla/5. (compatible Googlebot/. +http://www.google.co/bot.html)"
 
 HIT <ENTER> TO CONTINUE...
