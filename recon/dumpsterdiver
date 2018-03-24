@@ -54,6 +54,7 @@ function bottom () {
   b='\033['$(( L - 1 ))'H'
   echo -en "$b"
 }
+
 version="0.9b"
 
 
@@ -146,10 +147,6 @@ function pause ()
 }
 
 
-function bottom_scr ()
-{
-  echo -en
-}
 
 function fadebar ()
 {
@@ -272,7 +269,7 @@ function sqlite_execute(){
             sleep 0.01
             continue
         else
-            echo "${result}"
+            echo -n "${result}"
             break
         fi
     done
