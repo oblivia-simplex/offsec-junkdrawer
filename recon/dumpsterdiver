@@ -137,6 +137,7 @@ function greet ()
       echo         "       tor: $tor"
   fi
   echo             "       joblimit: $joblimit"
+  echo -en "${RESET}"
 }
 
 function pause ()
